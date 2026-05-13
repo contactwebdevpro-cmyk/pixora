@@ -1,0 +1,27 @@
+{
+  "name": "Pixora - Streaming TV et Films",
+  "short_name": "Pixora",
+  "description": "Regardez vos chaînes TV préférées et des milliers de films en streaming gratuit",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#10b981",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "video"],
+  "lang": "fr",
+  "dir": "ltr"
+}
