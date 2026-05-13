@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -22,13 +22,35 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 export function FilmMode() {
   const [query, setQuery] = useState('')
   const [films, setFilms] = useState<Film[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load popular films on mount
+  useEffect(() => {
+    const loadPopularFilms = async () => {
+      try {
+        const res = await fetch(
+          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
+        )
+        const data = await res.json()
+        if (data.results) {
+          setFilms(data.results)
+        }
+      } catch {
+        setStatus('Erreur lors du chargement des films populaires.')
+      } finally {
+        setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    }
+    loadPopularFilms()
+  }, [])
 
   // Block popups and new windows globally when film player is open
   useEffect(() => {
@@ -91,7 +113,25 @@ export function FilmMode() {
   }, [selectedFilm])
 
   const searchFilms = useCallback(async () => {
-    if (!query.trim()) return
+    if (!query.trim()) {
+      // If empty query, reload popular films
+      setIsLoading(true)
+      try {
+        const res = await fetch(
+          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
+        )
+        const data = await res.json()
+        if (data.results) {
+          setFilms(data.results)
+          setStatus('')
+        }
+      } catch {
+        setStatus('Erreur lors du chargement.')
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
     
     setIsLoading(true)
     setStatus('')
@@ -198,6 +238,18 @@ export function FilmMode() {
             )}
           </Button>
         </div>
+
+        {/* Section Title */}
+        {!isLoading && films.length > 0 && (
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-foreground">
+              {query.trim() ? `Resultats pour "${query}"` : 'Films Populaires'}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {query.trim() ? `${films.length} films trouves` : 'Les films les plus regardes du moment'}
+            </p>
+          </div>
+        )}
 
         {/* Status */}
         {status && (
@@ -335,12 +387,9 @@ export function FilmMode() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-2 justify-center mb-5">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Choisissez la langue de lecture
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground text-center mb-5">
+                Choisissez la langue de lecture
+              </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <Button
@@ -390,18 +439,8 @@ export function FilmMode() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 z-20 bg-black flex items-center justify-center"
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="relative">
-                      <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                      <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary/20" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Chargement du lecteur...</p>
-                      <div className="flex items-center gap-2 justify-center mt-3 text-xs text-primary/70">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Protection anti-pub active</span>
-                      </div>
-                    </div>
+                  <div className="relative">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
                   </div>
                 </motion.div>
               )}
@@ -444,11 +483,6 @@ export function FilmMode() {
                 <p className="text-xs text-white/50">
                   {selectedFilm.release_date ? new Date(selectedFilm.release_date).getFullYear() : ''}
                 </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <ShieldCheck className="w-4 h-4 text-green-400" />
-                <span className="text-xs text-green-400 font-medium">Protege</span>
               </div>
 
               <span className={`text-xs px-3 py-1.5 rounded-xl font-medium shrink-0 ${
