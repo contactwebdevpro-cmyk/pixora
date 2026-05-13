@@ -103,7 +103,7 @@ export function ChannelList() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
-      className="flex-1 flex flex-col bg-background overflow-hidden"
+      className="flex-1 flex flex-col bg-background min-h-0"
     >
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
         <h2 className="text-sm font-semibold">{title}</h2>
@@ -112,7 +112,7 @@ export function ChannelList() {
         </span>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2">
           <AnimatePresence mode="popLayout">
             {paginatedChannels.length === 0 ? (

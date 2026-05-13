@@ -31,9 +31,9 @@ export function Sidebar() {
       initial={{ x: -220, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
-      className="w-56 bg-card border-r border-border flex flex-col"
+      className="w-56 bg-card border-r border-border flex flex-col min-h-0"
     >
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2">
           <p className="px-3 py-2 text-[10px] font-medium tracking-[0.15em] text-muted-foreground uppercase">
             Navigation
