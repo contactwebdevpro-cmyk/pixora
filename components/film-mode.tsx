@@ -425,17 +425,17 @@ export function FilmMode() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
-            {/* Logo in top right corner */}
+            {/* Logo in top right corner - responsive */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="absolute top-4 right-4 z-40"
+              className="absolute top-1 right-2 sm:top-2 sm:right-4 z-40"
             >
               <img
                 src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/pixora/refs/heads/main/logo.png"
                 alt="Pixora"
-                className="h-10 w-auto object-contain drop-shadow-lg"
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain drop-shadow-lg"
               />
             </motion.div>
 
@@ -460,46 +460,46 @@ export function FilmMode() {
               )}
             </AnimatePresence>
             
-            {/* Sandboxed iframe with restricted permissions */}
+            {/* Iframe with mobile-friendly settings */}
             <iframe
               src={getEmbedUrl(selectedFilm.id, selectedLang)}
-              className="flex-1 w-full border-none relative z-0"
+              className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               referrerPolicy="no-referrer"
               onLoad={handleIframeLoad}
-              sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
+              style={{ minHeight: '200px' }}
             />
             
-            {/* Bottom controls bar */}
+            {/* Bottom controls bar - responsive */}
             <motion.div
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="relative z-30 bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/5 px-6 py-4 flex items-center gap-5 shrink-0"
+              className="relative z-30 bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/5 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-5 shrink-0"
             >
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={closePlayer}
-                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl gap-2"
+                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl gap-1 sm:gap-2 px-2 sm:px-3"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Retour
+                <span className="hidden sm:inline">Retour</span>
               </Button>
 
-              <div className="h-6 w-px bg-white/10" />
+              <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate text-white">
+                <p className="text-xs sm:text-sm font-semibold truncate text-white">
                   {selectedFilm.title}
                 </p>
-                <p className="text-xs text-white/50">
+                <p className="text-[10px] sm:text-xs text-white/50 hidden sm:block">
                   {selectedFilm.release_date ? new Date(selectedFilm.release_date).getFullYear() : ''}
                 </p>
               </div>
 
-              <span className={`text-xs px-3 py-1.5 rounded-xl font-medium shrink-0 ${
+              <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 ${
                 selectedLang === 'fr' 
                   ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30' 
                   : 'text-blue-400 bg-blue-400/15 border border-blue-400/30'
@@ -511,7 +511,7 @@ export function FilmMode() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleFullscreen}
-                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10"
+                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10"
               >
                 <Maximize className="w-4 h-4" />
               </Button>
