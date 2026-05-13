@@ -22,13 +22,35 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 export function FilmMode() {
   const [query, setQuery] = useState('')
   const [films, setFilms] = useState<Film[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load popular films on mount
+  useEffect(() => {
+    const loadPopularFilms = async () => {
+      try {
+        const res = await fetch(
+          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
+        )
+        const data = await res.json()
+        if (data.results) {
+          setFilms(data.results)
+        }
+      } catch {
+        setStatus('Erreur lors du chargement des films populaires.')
+      } finally {
+        setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    }
+    loadPopularFilms()
+  }, [])
 
   // Block popups and new windows globally when film player is open
   useEffect(() => {
@@ -91,7 +113,25 @@ export function FilmMode() {
   }, [selectedFilm])
 
   const searchFilms = useCallback(async () => {
-    if (!query.trim()) return
+    if (!query.trim()) {
+      // If empty query, reload popular films
+      setIsLoading(true)
+      try {
+        const res = await fetch(
+          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
+        )
+        const data = await res.json()
+        if (data.results) {
+          setFilms(data.results)
+          setStatus('')
+        }
+      } catch {
+        setStatus('Erreur lors du chargement.')
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
     
     setIsLoading(true)
     setStatus('')
@@ -198,6 +238,18 @@ export function FilmMode() {
             )}
           </Button>
         </div>
+
+        {/* Section Title */}
+        {!isLoading && films.length > 0 && (
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-foreground">
+              {query.trim() ? `Resultats pour "${query}"` : 'Films Populaires'}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {query.trim() ? `${films.length} films trouves` : 'Les films les plus regardes du moment'}
+            </p>
+          </div>
+        )}
 
         {/* Status */}
         {status && (
