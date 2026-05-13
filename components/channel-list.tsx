@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Star, ChevronLeft, ChevronRight, Play } from 'lucide-react'
 import { useAppStore, Channel } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,6 @@ export function ChannelList() {
 
   const [page, setPage] = useState(0)
 
-  // Reset page when view changes
   useEffect(() => {
     setPage(0)
   }, [view, selectedCategory, searchQuery])
@@ -57,13 +56,13 @@ export function ChannelList() {
       case 'favorites':
         return 'Favoris'
       case 'recent':
-        return 'Récents'
+        return 'Recents'
       case 'category':
-        return selectedCategory || 'Catégorie'
+        return selectedCategory || 'Categorie'
       case 'search':
-        return `Résultats : "${searchQuery}"`
+        return `"${searchQuery}"`
       default:
-        return 'Toutes les chaînes'
+        return 'Toutes les chaines'
     }
   }, [view, selectedCategory, searchQuery])
 
@@ -90,8 +89,8 @@ export function ChannelList() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement des chaînes...</p>
+          <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Chargement...</p>
         </motion.div>
       </div>
     )
@@ -101,31 +100,34 @@ export function ChannelList() {
     <motion.main
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
       className="flex-1 flex flex-col bg-background min-h-0"
     >
-      <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full border border-border">
-          {filteredChannels.length} chaîne{filteredChannels.length !== 1 ? 's' : ''}
+      {/* Header */}
+      <div className="flex items-center gap-4 px-5 py-4 border-b border-border/50">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <span className="text-xs text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded-lg">
+          {filteredChannels.length} chaine{filteredChannels.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="p-2">
-          <AnimatePresence mode="popLayout">
-            {paginatedChannels.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center py-12 text-muted-foreground"
-              >
-                Aucune chaîne trouvée.
-              </motion.div>
-            ) : (
-              paginatedChannels.map((channel, index) => (
-                <ChannelRow
+      {/* Channel Grid */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
+        <AnimatePresence mode="popLayout">
+          {paginatedChannels.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-16 text-muted-foreground"
+            >
+              <div className="text-4xl mb-3">📺</div>
+              <p className="text-sm">Aucune chaine trouvee</p>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              {paginatedChannels.map((channel, index) => (
+                <ChannelCard
                   key={channel.id}
                   channel={channel}
                   index={index}
@@ -135,54 +137,62 @@ export function ChannelList() {
                   onPlay={() => handlePlay(channel)}
                   onToggleFavorite={() => toggleFavorite(channel.id)}
                 />
-              ))
-            )}
-          </AnimatePresence>
-        </div>
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 px-4 py-3 border-t border-border">
+        <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-border/50 bg-card/30">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
+            className="h-8 px-3 rounded-lg"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Préc.
+            <ChevronLeft className="w-4 h-4" />
           </Button>
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum = i
-            if (totalPages > 5) {
-              if (page < 3) {
-                pageNum = i
-              } else if (page > totalPages - 4) {
-                pageNum = totalPages - 5 + i
-              } else {
-                pageNum = page - 2 + i
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum = i
+              if (totalPages > 5) {
+                if (page < 3) {
+                  pageNum = i
+                } else if (page > totalPages - 4) {
+                  pageNum = totalPages - 5 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
               }
-            }
-            return (
-              <Button
-                key={pageNum}
-                variant={page === pageNum ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPage(pageNum)}
-                className="w-10"
-              >
-                {pageNum + 1}
-              </Button>
-            )
-          })}
+              return (
+                <Button
+                  key={pageNum}
+                  variant={page === pageNum ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPage(pageNum)}
+                  className={cn(
+                    'h-8 w-8 rounded-lg text-xs',
+                    page === pageNum && 'bg-primary text-primary-foreground'
+                  )}
+                >
+                  {pageNum + 1}
+                </Button>
+              )
+            })}
+          </div>
+          
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
+            className="h-8 px-3 rounded-lg"
           >
-            Suiv.
-            <ChevronRight className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       )}
@@ -190,7 +200,7 @@ export function ChannelList() {
   )
 }
 
-interface ChannelRowProps {
+interface ChannelCardProps {
   channel: Channel
   index: number
   isPlaying: boolean
@@ -200,7 +210,7 @@ interface ChannelRowProps {
   onToggleFavorite: () => void
 }
 
-function ChannelRow({
+function ChannelCard({
   channel,
   index,
   isPlaying,
@@ -208,68 +218,91 @@ function ChannelRow({
   showLogo,
   onPlay,
   onToggleFavorite,
-}: ChannelRowProps) {
+}: ChannelCardProps) {
   const [imgError, setImgError] = useState(false)
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2, delay: index * 0.02 }}
       onClick={onPlay}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 mb-1',
+        'group relative flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all duration-200',
         isPlaying
-          ? 'bg-secondary border border-primary'
-          : 'hover:bg-secondary/60'
+          ? 'bg-primary/10 border border-primary/30'
+          : 'bg-card/50 border border-transparent hover:bg-card hover:border-border/50'
       )}
     >
+      {/* Logo */}
       {showLogo && channel.logo && !imgError ? (
         <img
           src={channel.logo}
           alt=""
-          className="w-10 h-6 object-contain bg-secondary rounded shrink-0"
+          className="w-10 h-7 object-contain bg-secondary/50 rounded-lg shrink-0"
           loading="lazy"
           onError={() => setImgError(true)}
         />
       ) : (
-        <div className="w-10 h-6 bg-secondary border border-border rounded flex items-center justify-center shrink-0">
-          <span className="text-xs font-bold text-primary">
+        <div className="w-10 h-7 bg-secondary/50 rounded-lg flex items-center justify-center shrink-0">
+          <span className="text-xs font-bold text-primary/70">
             {channel.name[0]?.toUpperCase() || '?'}
           </span>
         </div>
       )}
 
-      <span
-        className={cn(
-          'flex-1 text-sm truncate',
-          isPlaying ? 'text-primary font-semibold' : 'text-foreground'
-        )}
-      >
-        {channel.name}
-      </span>
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <span
+          className={cn(
+            'block text-sm font-medium truncate transition-colors',
+            isPlaying ? 'text-primary' : 'text-foreground group-hover:text-primary'
+          )}
+        >
+          {channel.name}
+        </span>
+        <span className="block text-xs text-muted-foreground truncate mt-0.5">
+          {channel.group}
+        </span>
+      </div>
 
-      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full truncate max-w-[100px]">
-        {channel.group}
-      </span>
-
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleFavorite()
-        }}
-        className={cn(
-          'p-1 rounded transition-colors',
-          isFavorite
-            ? 'text-destructive'
-            : 'text-muted-foreground hover:text-destructive'
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        {/* Play indicator */}
+        {isPlaying && (
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse mr-1" />
         )}
-      >
-        <Star className={cn('w-4 h-4', isFavorite && 'fill-current')} />
-      </motion.button>
+        
+        {/* Favorite */}
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavorite()
+          }}
+          className={cn(
+            'p-1.5 rounded-lg transition-colors',
+            isFavorite
+              ? 'text-amber-500 bg-amber-500/10'
+              : 'text-muted-foreground hover:text-amber-500 hover:bg-secondary/50'
+          )}
+        >
+          <Star className={cn('w-4 h-4', isFavorite && 'fill-current')} />
+        </motion.button>
+
+        {/* Play button on hover */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileHover={{ opacity: 1, scale: 1 }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+            <Play className="w-4 h-4 fill-current" />
+          </div>
+        </motion.div>
+      </div>
     </motion.div>
   )
 }

@@ -2,14 +2,14 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Radio, Star, Clock, Folder } from 'lucide-react'
+import { Radio, Star, Clock, Folder, ChevronRight } from 'lucide-react'
 import { useAppStore, ViewMode } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const navItems: { id: ViewMode; icon: React.ReactNode; label: string }[] = [
-  { id: 'all', icon: <Radio className="w-4 h-4" />, label: 'Toutes les chaînes' },
+  { id: 'all', icon: <Radio className="w-4 h-4" />, label: 'Toutes' },
   { id: 'favorites', icon: <Star className="w-4 h-4" />, label: 'Favoris' },
-  { id: 'recent', icon: <Clock className="w-4 h-4" />, label: 'Récents' },
+  { id: 'recent', icon: <Clock className="w-4 h-4" />, label: 'Recents' },
 ]
 
 export function Sidebar() {
@@ -27,64 +27,83 @@ export function Sidebar() {
 
   return (
     <motion.nav
-      initial={{ x: -220, opacity: 0 }}
+      initial={{ x: -240, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
-      className="w-56 bg-card border-r border-border flex flex-col min-h-0"
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+      className="w-60 bg-sidebar border-r border-border/50 flex flex-col min-h-0"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="p-2">
-          <p className="px-3 py-2 text-[10px] font-medium tracking-[0.15em] text-muted-foreground uppercase">
+      <div className="flex-1 min-h-0 overflow-y-auto py-3">
+        {/* Navigation */}
+        <div className="px-3 mb-2">
+          <p className="px-3 py-2 text-[10px] font-semibold tracking-[0.15em] text-muted-foreground/60 uppercase">
             Navigation
           </p>
-          {navItems.map((item) => (
-            <motion.button
-              key={item.id}
-              whileHover={{ x: 2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setView(item.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
-                view === item.id && selectedCategory === null
-                  ? 'bg-secondary text-primary border-l-2 border-primary pl-[10px]'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </motion.button>
-          ))}
-
-          <p className="px-3 py-2 mt-4 text-[10px] font-medium tracking-[0.15em] text-muted-foreground uppercase">
-            Catégories
-          </p>
-          {categories.map(([name, count]) => (
-            <motion.button
-              key={name}
-              whileHover={{ x: 2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setSelectedCategory(name)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                view === 'category' && selectedCategory === name
-                  ? 'bg-secondary text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-              )}
-            >
-              <Folder className="w-4 h-4 shrink-0" />
-              <span className="flex-1 truncate text-left">{name}</span>
-              <span
+          <div className="space-y-0.5">
+            {navItems.map((item) => (
+              <motion.button
+                key={item.id}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setView(item.id)}
                 className={cn(
-                  'text-[10px] px-2 py-0.5 rounded-full bg-secondary border border-border min-w-[28px] text-center',
-                  view === 'category' && selectedCategory === name
-                    ? 'text-primary border-primary/30'
-                    : 'text-muted-foreground'
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200',
+                  view === item.id && selectedCategory === null
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                 )}
               >
-                {count}
-              </span>
-            </motion.button>
-          ))}
+                <span className={cn(
+                  'transition-colors',
+                  view === item.id && selectedCategory === null ? 'text-primary' : ''
+                )}>
+                  {item.icon}
+                </span>
+                <span className="flex-1 text-left font-medium">{item.label}</span>
+                {view === item.id && selectedCategory === null && (
+                  <ChevronRight className="w-3 h-3 text-primary" />
+                )}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="px-3">
+          <p className="px-3 py-2 text-[10px] font-semibold tracking-[0.15em] text-muted-foreground/60 uppercase">
+            Categories
+          </p>
+          <div className="space-y-0.5">
+            {categories.map(([name, count]) => (
+              <motion.button
+                key={name}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedCategory(name)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200',
+                  view === 'category' && selectedCategory === name
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                )}
+              >
+                <Folder className={cn(
+                  'w-4 h-4 shrink-0 transition-colors',
+                  view === 'category' && selectedCategory === name ? 'text-primary' : ''
+                )} />
+                <span className="flex-1 truncate text-left">{name}</span>
+                <span
+                  className={cn(
+                    'text-[10px] font-medium px-2 py-0.5 rounded-md min-w-[28px] text-center transition-colors',
+                    view === 'category' && selectedCategory === name
+                      ? 'bg-primary/20 text-primary'
+                      : 'bg-secondary/50 text-muted-foreground'
+                  )}
+                >
+                  {count}
+                </span>
+              </motion.button>
+            ))}
+          </div>
         </div>
       </div>
     </motion.nav>
