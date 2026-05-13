@@ -433,7 +433,7 @@ export function FilmMode() {
              className="absolute top-1 right-1 sm:top-2 sm:right-2 z-40"
             >
               <img
-                src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/pixora/refs/heads/main/logo.png"
+                src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/logo/refs/heads/main/logo.png"
                 alt="Pixora"
                 className="h-10 sm:h-12 md:h-14 w-auto object-contain drop-shadow-lg"
               />
