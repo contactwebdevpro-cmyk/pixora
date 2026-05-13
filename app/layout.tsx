@@ -37,17 +37,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="dark bg-background">
-      <head>
-        <Script
-          async
-          strategy="afterInteractive"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3211432354952402"
-          crossOrigin="anonymous"
-        />
-      </head>
-
       <body className="font-sans antialiased overflow-hidden">
+
+        {/* Google AdSense script */}
+        {process.env.NODE_ENV === 'production' && (
+          <Script
+            async
+            strategy="afterInteractive"
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3211432354952402"
+            crossOrigin="anonymous"
+          />
+        )}
+
         {children}
+
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
