@@ -13,10 +13,10 @@ export function BootScreen() {
 
   useEffect(() => {
     const steps = [
-      { progress: 25, status: 'Verification securite...', delay: 150 },
-      { progress: 50, status: 'Chargement ressources...', delay: 150 },
-      { progress: 80, status: 'Preparation interface...', delay: 150 },
-      { progress: 100, status: '', delay: 200 },
+      { progress: 20, status: 'Verification systeme...', delay: 200 },
+      { progress: 45, status: 'Chargement securise...', delay: 200 },
+      { progress: 70, status: 'Preparation interface...', delay: 200 },
+      { progress: 100, status: 'Pret', delay: 300 },
     ]
 
     let timeout: NodeJS.Timeout
@@ -34,7 +34,7 @@ export function BootScreen() {
       }
     }
 
-    timeout = setTimeout(runStep, 400)
+    timeout = setTimeout(runStep, 500)
 
     return () => clearTimeout(timeout)
   }, [])
@@ -46,39 +46,43 @@ export function BootScreen() {
       <motion.div
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
         className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-subtle"
       >
         {/* Ambient glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            transition={{ duration: 2 }}
+            className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 rounded-full blur-[120px]" 
+          />
         </div>
 
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="flex flex-col items-center relative z-10"
         >
           {/* Logo */}
-          <div className="relative mb-2">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-foreground">
-                Pix
-                <span className="text-primary">ora</span>
-              </h1>
-            </motion.div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="relative mb-3"
+          >
+            <h1 className="text-6xl md:text-7xl font-bold tracking-tighter">
+              <span className="text-foreground">Pix</span>
+              <span className="text-gradient">ora</span>
+            </h1>
+          </motion.div>
           
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-xs tracking-[0.3em] text-muted-foreground uppercase mb-12"
+            transition={{ delay: 0.4 }}
+            className="text-xs tracking-[0.35em] text-muted-foreground uppercase mb-14"
           >
             Streaming Premium
           </motion.p>
@@ -87,25 +91,26 @@ export function BootScreen() {
             {!showModeSelect ? (
               <motion.div
                 key="loading"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.4 }}
                 className="flex flex-col items-center"
               >
                 {/* Progress bar */}
-                <div className="w-64 h-0.5 bg-secondary rounded-full overflow-hidden mb-4">
+                <div className="w-72 h-1 bg-secondary rounded-full overflow-hidden mb-5">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-primary/80 to-primary rounded-full"
+                    className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
                   />
                 </div>
                 
                 {/* Status */}
-                <div className="flex items-center gap-2 h-5">
-                  <Shield className="w-3 h-3 text-primary/60" />
-                  <p className="text-xs text-muted-foreground tracking-wide">
+                <div className="flex items-center gap-2.5 h-6">
+                  <Shield className="w-3.5 h-3.5 text-primary animate-pulse-soft" />
+                  <p className="text-sm text-muted-foreground tracking-wide">
                     {status}
                   </p>
                 </div>
@@ -113,28 +118,28 @@ export function BootScreen() {
             ) : (
               <motion.div
                 key="mode-select"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 25 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="flex flex-col items-center gap-8"
+                transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="flex flex-col items-center gap-10"
               >
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Zap className="w-3 h-3 text-primary" />
-                  <p className="text-xs tracking-[0.2em] uppercase">
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Zap className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-xs tracking-[0.25em] uppercase font-medium">
                     Choisir un mode
                   </p>
                 </div>
                 
-                <div className="flex gap-4">
+                <div className="flex gap-5">
                   <ModeCard
-                    icon={<Tv className="w-8 h-8" />}
+                    icon={<Tv className="w-9 h-9" />}
                     label="TV Direct"
                     description="Chaines en direct"
                     onClick={() => setAppMode('tv')}
                     delay={0.1}
                   />
                   <ModeCard
-                    icon={<Film className="w-8 h-8" />}
+                    icon={<Film className="w-9 h-9" />}
                     label="Films"
                     description="VOD & Series"
                     onClick={() => setAppMode('film')}
@@ -150,11 +155,11 @@ export function BootScreen() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="absolute bottom-6 flex items-center gap-2 text-muted-foreground/50"
+          transition={{ delay: 1 }}
+          className="absolute bottom-8 flex items-center gap-2.5 text-muted-foreground/40"
         >
-          <Shield className="w-3 h-3" />
-          <span className="text-xs tracking-wide">Connexion securisee</span>
+          <Shield className="w-3.5 h-3.5" />
+          <span className="text-xs tracking-wider">Connexion securisee</span>
         </motion.div>
       </motion.div>
     </AnimatePresence>
@@ -172,26 +177,26 @@ interface ModeCardProps {
 function ModeCard({ icon, label, description, onClick, delay }: ModeCardProps) {
   return (
     <motion.button
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{ scale: 1.03, y: -4 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="group relative w-44 py-10 bg-card/50 backdrop-blur-sm border border-border rounded-2xl flex flex-col items-center gap-3 transition-all duration-300 hover:border-primary/50 hover:bg-card/80 focus-ring"
+      className="group relative w-48 py-12 bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl flex flex-col items-center gap-4 transition-all duration-400 hover:border-primary/50 hover:bg-card focus-ring"
     >
       {/* Glow effect on hover */}
-      <div className="absolute inset-0 rounded-2xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-0 rounded-3xl bg-primary/8 opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
       
-      <div className="relative text-muted-foreground group-hover:text-primary transition-colors duration-300">
+      <div className="relative text-muted-foreground group-hover:text-primary transition-colors duration-400">
         {icon}
       </div>
       
       <div className="relative text-center">
-        <span className="block text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-300">
+        <span className="block text-base font-semibold text-foreground group-hover:text-primary transition-colors duration-400">
           {label}
         </span>
-        <span className="block text-xs text-muted-foreground mt-0.5">
+        <span className="block text-xs text-muted-foreground mt-1">
           {description}
         </span>
       </div>
@@ -200,7 +205,7 @@ function ModeCard({ icon, label, description, onClick, delay }: ModeCardProps) {
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         whileHover={{ opacity: 1, scale: 1 }}
-        className="absolute bottom-3 right-3"
+        className="absolute bottom-4 right-4"
       >
         <Play className="w-4 h-4 text-primary fill-primary" />
       </motion.div>

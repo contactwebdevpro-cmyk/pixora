@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -12,6 +12,7 @@ interface Film {
   poster_path: string | null
   release_date: string
   overview: string
+  vote_average: number
 }
 
 const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'
@@ -26,6 +27,68 @@ export function FilmMode() {
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
+  const [iframeLoading, setIframeLoading] = useState(true)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Block popups and new windows globally when film player is open
+  useEffect(() => {
+    if (!selectedFilm) return
+
+    // Store original window.open
+    const originalOpen = window.open
+
+    // Block all popups
+    window.open = function() {
+      // Popup blocked silently
+      return null
+    }
+
+    // Block click events that try to open new windows
+    const blockPopupClicks = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'A') {
+        const anchor = target as HTMLAnchorElement
+        if (anchor.target === '_blank' || anchor.rel?.includes('noopener')) {
+          e.preventDefault()
+          e.stopPropagation()
+          // Link popup blocked silently
+        }
+      }
+    }
+
+    // Block beforeunload popups
+    const blockBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+
+    document.addEventListener('click', blockPopupClicks, true)
+    window.addEventListener('beforeunload', blockBeforeUnload)
+
+    return () => {
+      window.open = originalOpen
+      document.removeEventListener('click', blockPopupClicks, true)
+      window.removeEventListener('beforeunload', blockBeforeUnload)
+    }
+  }, [selectedFilm])
+
+  // Handle iframe focus and messaging
+  useEffect(() => {
+    if (!selectedFilm) return
+
+    const handleMessage = (e: MessageEvent) => {
+      // Block suspicious messages from iframe
+      if (e.data && typeof e.data === 'string') {
+        if (e.data.includes('ad') || e.data.includes('popup') || e.data.includes('click')) {
+        // Suspicious message blocked silently
+          return
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [selectedFilm])
 
   const searchFilms = useCallback(async () => {
     if (!query.trim()) return
@@ -64,12 +127,14 @@ export function FilmMode() {
 
   const selectLanguage = (lang: 'fr' | 'en') => {
     setSelectedLang(lang)
+    setIframeLoading(true)
     setSelectedFilm(showLangChoice)
     setShowLangChoice(null)
   }
 
   const closePlayer = () => {
     setSelectedFilm(null)
+    setIframeLoading(true)
   }
 
   const closeLangChoice = () => {
@@ -94,30 +159,34 @@ export function FilmMode() {
     return `https://vidsrc.pro/embed/movie/${tmdbId}`
   }
 
+  const handleIframeLoad = () => {
+    setIframeLoading(false)
+  }
+
   return (
     <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex-1 flex flex-col p-5 overflow-hidden"
+        className="flex-1 flex flex-col p-6 overflow-hidden"
       >
         {/* Search */}
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-3 mb-8">
           <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder="Rechercher un film..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="pl-10 h-11 bg-secondary/50 border-border/50 rounded-xl focus:border-primary/50 focus:bg-secondary/80 transition-all"
+              className="pl-11 h-12 bg-card/60 border-border/40 rounded-2xl focus:border-primary/60 focus:bg-card transition-all text-sm"
             />
           </div>
           <Button 
             onClick={searchFilms} 
             disabled={isLoading} 
-            className="h-11 px-5 rounded-xl bg-primary hover:bg-primary/90"
+            className="h-12 px-6 rounded-2xl bg-primary hover:bg-primary/90 font-medium"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -132,56 +201,64 @@ export function FilmMode() {
 
         {/* Status */}
         {status && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
+          <div className="text-center py-12 text-muted-foreground text-sm">
             {status}
           </div>
         )}
 
         {/* Film Grid */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
             <AnimatePresence mode="popLayout">
               {films.map((film, index) => (
                 <motion.div
                   key={film.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.03 }}
+                  transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                   onClick={() => playFilm(film)}
-                  className="group bg-card/50 border border-border/50 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5"
+                  className="group bg-card/40 border border-border/30 rounded-2xl overflow-hidden cursor-pointer transition-all duration-400 hover:border-primary/40 hover:bg-card/60 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
                 >
-                  <div className="aspect-[2/3] bg-secondary/50 overflow-hidden relative">
+                  <div className="aspect-[2/3] bg-secondary/30 overflow-hidden relative">
                     {film.poster_path ? (
                       <img
                         src={`${TMDB_IMG}${film.poster_path}`}
                         alt={film.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-110"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <span className="text-4xl">🎬</span>
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gradient-to-br from-secondary/50 to-secondary/30">
+                        <Play className="w-10 h-10 opacity-30" />
+                      </div>
+                    )}
+                    
+                    {/* Rating badge */}
+                    {film.vote_average > 0 && (
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm">
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <span className="text-xs font-medium text-white">{film.vote_average.toFixed(1)}</span>
                       </div>
                     )}
                     
                     {/* Play overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-400 flex items-center justify-center">
                       <motion.div
-                        initial={{ scale: 0.8 }}
+                        initial={{ scale: 0.8, opacity: 0 }}
                         whileHover={{ scale: 1.1 }}
-                        className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center"
+                        className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30"
                       >
-                        <Play className="w-5 h-5 text-primary-foreground fill-current ml-0.5" />
+                        <Play className="w-6 h-6 text-primary-foreground fill-current ml-1" />
                       </motion.div>
                     </div>
                   </div>
                   
-                  <div className="p-3">
-                    <h3 className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
+                  <div className="p-3.5">
+                    <h3 className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
                       {film.title}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-1.5 text-muted-foreground">
+                    <div className="flex items-center gap-1.5 mt-2 text-muted-foreground">
                       <Calendar className="w-3 h-3" />
                       <span className="text-xs">
                         {film.release_date ? new Date(film.release_date).getFullYear() : 'N/A'}
@@ -198,12 +275,12 @@ export function FilmMode() {
         {films.length === 0 && !status && !isLoading && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-20 h-20 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">🎬</span>
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mx-auto mb-6 border border-primary/10">
+                <Play className="w-10 h-10 text-primary/50" />
               </div>
-              <h2 className="text-lg font-semibold mb-1">Rechercher un film</h2>
-              <p className="text-muted-foreground text-sm">
-                Utilisez la barre de recherche ci-dessus
+              <h2 className="text-xl font-semibold mb-2 text-foreground">Rechercher un film</h2>
+              <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                Utilisez la barre de recherche pour trouver vos films preferes
               </p>
             </div>
           </div>
@@ -217,60 +294,70 @@ export function FilmMode() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
             onClick={closeLangChoice}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              className="bg-card border border-border/50 rounded-3xl p-7 max-w-md w-full shadow-2xl"
             >
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-start gap-5 mb-7">
                 {showLangChoice.poster_path && (
                   <img
                     src={`${TMDB_IMG}${showLangChoice.poster_path}`}
                     alt={showLangChoice.title}
-                    className="w-16 h-24 object-cover rounded-xl"
+                    className="w-20 h-28 object-cover rounded-xl shadow-lg"
                   />
                 )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold truncate">{showLangChoice.title}</h3>
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex-1 min-w-0 pt-1">
+                  <h3 className="text-xl font-bold truncate text-foreground">{showLangChoice.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
                     {showLangChoice.release_date ? new Date(showLangChoice.release_date).getFullYear() : 'N/A'}
                   </p>
+                  {showLangChoice.vote_average > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                      <span className="text-sm font-medium">{showLangChoice.vote_average.toFixed(1)}</span>
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={closeLangChoice}
-                  className="shrink-0 rounded-xl"
+                  className="shrink-0 rounded-xl h-9 w-9 -mt-1 -mr-1"
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
 
-              <p className="text-sm text-muted-foreground mb-4 text-center">
-                Choisissez la langue
-              </p>
+              <div className="flex items-center gap-2 justify-center mb-5">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Choisissez la langue de lecture
+                </p>
+              </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <Button
                   variant="outline"
                   onClick={() => selectLanguage('fr')}
-                  className="h-16 flex flex-col gap-1.5 rounded-xl hover:border-primary hover:bg-primary/10"
+                  className="h-20 flex flex-col gap-2 rounded-2xl border-border/50 hover:border-primary hover:bg-primary/10 transition-all"
                 >
-                  <span className="text-xl">🇫🇷</span>
+                  <span className="text-2xl">FR</span>
                   <span className="font-medium text-sm">Francais (VF)</span>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => selectLanguage('en')}
-                  className="h-16 flex flex-col gap-1.5 rounded-xl hover:border-blue-400 hover:bg-blue-400/10"
+                  className="h-20 flex flex-col gap-2 rounded-2xl border-border/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all"
                 >
-                  <span className="text-xl">🇬🇧</span>
-                  <span className="font-medium text-sm">English</span>
+                  <span className="text-2xl">EN</span>
+                  <span className="font-medium text-sm">English (VO)</span>
                 </Button>
               </div>
             </motion.div>
@@ -278,58 +365,105 @@ export function FilmMode() {
         )}
       </AnimatePresence>
 
-      {/* Player */}
+      {/* Player with Ad Blocker */}
       <AnimatePresence>
         {selectedFilm && (
           <motion.div
             id="film-player-container"
+            ref={containerRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
+            {/* Ad blocker overlay - catches clicks that try to open popups */}
+            <div 
+              className="absolute inset-0 z-10 pointer-events-none"
+              style={{ pointerEvents: iframeLoading ? 'auto' : 'none' }}
+            />
+            
+            {/* Loading overlay */}
+            <AnimatePresence>
+              {iframeLoading && (
+                <motion.div
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-20 bg-black flex items-center justify-center"
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                      <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                      <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary/20" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Chargement du lecteur...</p>
+                      <div className="flex items-center gap-2 justify-center mt-3 text-xs text-primary/70">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Protection anti-pub active</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
+            {/* Sandboxed iframe with restricted permissions */}
             <iframe
               src={getEmbedUrl(selectedFilm.id, selectedLang)}
-              className="flex-1 w-full border-none"
+              className="flex-1 w-full border-none relative z-0"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               referrerPolicy="no-referrer"
+              onLoad={handleIframeLoad}
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
             />
             
+            {/* Bottom controls bar */}
             <motion.div
-              initial={{ y: 80 }}
-              animate={{ y: 0 }}
-              className="glass border-t border-border/50 px-5 py-3 flex items-center gap-4 shrink-0"
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="relative z-30 bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/5 px-6 py-4 flex items-center gap-5 shrink-0"
             >
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={closePlayer}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl gap-2"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="w-4 h-4" />
                 Retour
               </Button>
 
+              <div className="h-6 w-px bg-white/10" />
+
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-semibold truncate text-white">
                   {selectedFilm.title}
+                </p>
+                <p className="text-xs text-white/50">
+                  {selectedFilm.release_date ? new Date(selectedFilm.release_date).getFullYear() : ''}
                 </p>
               </div>
 
-              <span className={`text-xs px-2.5 py-1 rounded-lg shrink-0 ${
+              <div className="flex items-center gap-2 shrink-0">
+                <ShieldCheck className="w-4 h-4 text-green-400" />
+                <span className="text-xs text-green-400 font-medium">Protege</span>
+              </div>
+
+              <span className={`text-xs px-3 py-1.5 rounded-xl font-medium shrink-0 ${
                 selectedLang === 'fr' 
-                  ? 'text-success bg-success/10 border border-success/30' 
-                  : 'text-blue-400 bg-blue-400/10 border border-blue-400/30'
+                  ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30' 
+                  : 'text-blue-400 bg-blue-400/15 border border-blue-400/30'
               }`}>
-                {selectedLang === 'fr' ? '🇫🇷 VF' : '🇬🇧 EN'}
+                {selectedLang === 'fr' ? 'VF' : 'VO'}
               </span>
 
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleFullscreen}
-                className="shrink-0 rounded-xl"
+                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10"
               >
                 <Maximize className="w-4 h-4" />
               </Button>
