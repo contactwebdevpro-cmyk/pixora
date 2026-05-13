@@ -430,7 +430,7 @@ export function FilmMode() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="absolute top-1 right-2 sm:top-2 sm:right-4 z-40"
+              className="absolute top-1 right-6 sm:top-2 sm:right-8 z-40"
             >
               <img
                 src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/pixora/refs/heads/main/logo.png"
