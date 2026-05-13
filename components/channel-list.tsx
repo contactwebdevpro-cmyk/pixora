@@ -6,7 +6,6 @@ import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppStore, Channel } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 export function ChannelList() {
   const {
@@ -112,7 +111,7 @@ export function ChannelList() {
         </span>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-2">
           <AnimatePresence mode="popLayout">
             {paginatedChannels.length === 0 ? (
@@ -140,7 +139,7 @@ export function ChannelList() {
             )}
           </AnimatePresence>
         </div>
-      </ScrollArea>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 px-4 py-3 border-t border-border">

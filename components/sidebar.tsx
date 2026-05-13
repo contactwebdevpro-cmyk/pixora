@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { Radio, Star, Clock, Folder } from 'lucide-react'
 import { useAppStore, ViewMode } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 const navItems: { id: ViewMode; icon: React.ReactNode; label: string }[] = [
   { id: 'all', icon: <Radio className="w-4 h-4" />, label: 'Toutes les chaînes' },
@@ -33,7 +32,7 @@ export function Sidebar() {
       transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
       className="w-56 bg-card border-r border-border flex flex-col min-h-0"
     >
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-2">
           <p className="px-3 py-2 text-[10px] font-medium tracking-[0.15em] text-muted-foreground uppercase">
             Navigation
@@ -87,7 +86,7 @@ export function Sidebar() {
             </motion.button>
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </motion.nav>
   )
 }

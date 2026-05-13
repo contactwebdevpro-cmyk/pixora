@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, Maximize, ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface Film {
   id: number
@@ -119,7 +118,7 @@ export function FilmMode() {
         )}
 
         {/* Film Grid */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             <AnimatePresence mode="popLayout">
               {films.map((film, index) => (
@@ -158,7 +157,7 @@ export function FilmMode() {
               ))}
             </AnimatePresence>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Initial State */}
         {films.length === 0 && !status && !isLoading && (
@@ -188,8 +187,8 @@ export function FilmMode() {
               src={getEmbedUrl(selectedFilm.id)}
               className="flex-1 w-full border-none"
               allowFullScreen
-              allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              referrerPolicy="no-referrer"
             />
             
             <motion.div
