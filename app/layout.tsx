@@ -32,14 +32,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="fr" className="dark bg-background">
       <body className="font-sans antialiased overflow-hidden">
 
-        {/* Google AdSense script */}
+        {/* Google AdSense */}
         {process.env.NODE_ENV === 'production' && (
           <Script
             async
