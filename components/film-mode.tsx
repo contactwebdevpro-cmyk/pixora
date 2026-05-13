@@ -425,6 +425,20 @@ export function FilmMode() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
+            {/* Logo in top right corner */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+              className="absolute top-4 right-4 z-40"
+            >
+              <img
+                src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/pixora/refs/heads/main/logo.png"
+                alt="Pixora"
+                className="h-10 w-auto object-contain drop-shadow-lg"
+              />
+            </motion.div>
+
             {/* Ad blocker overlay - catches clicks that try to open popups */}
             <div 
               className="absolute inset-0 z-10 pointer-events-none"
