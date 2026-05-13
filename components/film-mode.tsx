@@ -26,6 +26,8 @@ export function FilmMode() {
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
+  const [adBlockClicks, setAdBlockClicks] = useState(0)
+  const [showAdBlocker, setShowAdBlocker] = useState(true)
 
   const searchFilms = useCallback(async () => {
     if (!query.trim()) return
