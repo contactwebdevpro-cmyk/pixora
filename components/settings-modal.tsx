@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Settings } from 'lucide-react'
+import { X, Settings, Shield, Tv, Volume2 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/select'
 
 const PRESETS = [
-  { url: 'https://iptv-org.github.io/iptv/languages/fra.m3u', label: '🇫🇷 France uniquement' },
-  { url: 'https://iptv-org.github.io/iptv/index.m3u', label: '🌍 Monde entier (lent)' },
+  { url: 'https://iptv-org.github.io/iptv/languages/fra.m3u', label: 'France uniquement', flag: '🇫🇷' },
+  { url: 'https://iptv-org.github.io/iptv/index.m3u', label: 'Monde entier', flag: '🌍' },
 ]
 
 export function SettingsModal() {
@@ -56,7 +56,6 @@ export function SettingsModal() {
     setPageSize(parseInt(localPageSize))
     setVolume(localVolume)
     setSettingsOpen(false)
-    // Reload to apply M3U changes
     if (localM3uUrl !== m3uUrl) {
       window.location.reload()
     }
@@ -73,26 +72,31 @@ export function SettingsModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           onClick={() => setSettingsOpen(false)}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl"
+            className="bg-card border border-border/50 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-              <Settings className="w-5 h-5 text-primary" />
-              <h2 className="flex-1 text-base font-bold tracking-wide">Paramètres</h2>
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border/50">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Settings className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm font-semibold">Parametres</h2>
+                <p className="text-xs text-muted-foreground">Configuration de Pixora</p>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSettingsOpen(false)}
-                className="w-8 h-8"
+                className="w-8 h-8 rounded-xl"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -102,39 +106,46 @@ export function SettingsModal() {
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
               {/* M3U Source */}
               <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-semibold">Source M3U</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    URL de la liste IPTV
-                  </p>
+                <div className="flex items-center gap-2">
+                  <Tv className="w-4 h-4 text-primary" />
+                  <Label className="text-sm font-medium">Source IPTV</Label>
                 </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {PRESETS.map((preset) => (
-                    <Button
+                    <button
                       key={preset.url}
-                      variant="outline"
-                      className="w-full justify-start text-left h-auto py-2.5"
                       onClick={() => handlePreset(preset.url)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                        localM3uUrl === preset.url
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border/50 bg-secondary/30 hover:bg-secondary/50 text-foreground'
+                      }`}
                     >
-                      {preset.label}
-                    </Button>
+                      <span className="text-lg">{preset.flag}</span>
+                      <span className="text-xs font-medium">{preset.label}</span>
+                    </button>
                   ))}
                 </div>
                 <Input
                   value={localM3uUrl}
                   onChange={(e) => setLocalM3uUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="bg-secondary"
+                  placeholder="URL personnalisee..."
+                  className="bg-secondary/30 border-border/50 rounded-xl text-sm"
                 />
               </div>
 
               {/* Show Logos */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold">Logos des chaînes</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Désactiver = plus rapide
-                  </p>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Logos</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Desactiver = plus rapide
+                    </p>
+                  </div>
                 </div>
                 <Switch
                   checked={localShowLogos}
@@ -143,15 +154,15 @@ export function SettingsModal() {
               </div>
 
               {/* Page Size */}
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                 <div>
-                  <Label className="text-sm font-semibold">Lignes par page</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <Label className="text-sm font-medium">Chaines par page</Label>
+                  <p className="text-xs text-muted-foreground">
                     Moins = plus fluide
                   </p>
                 </div>
                 <Select value={localPageSize} onValueChange={setLocalPageSize}>
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="w-20 h-9 rounded-lg bg-secondary/50 border-border/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -162,13 +173,16 @@ export function SettingsModal() {
                 </Select>
               </div>
 
-              {/* Initial Volume */}
-              <div className="space-y-3">
+              {/* Volume */}
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-semibold">Volume initial</Label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Volume2 className="w-4 h-4 text-primary" />
+                    </div>
+                    <Label className="text-sm font-medium">Volume initial</Label>
                   </div>
-                  <span className="text-sm text-primary font-semibold tabular-nums">
+                  <span className="text-sm text-primary font-semibold tabular-nums bg-primary/10 px-2 py-0.5 rounded-md">
                     {localVolume}%
                   </span>
                 </div>
@@ -177,18 +191,22 @@ export function SettingsModal() {
                   onValueChange={([v]) => setLocalVolume(v)}
                   max={100}
                   step={1}
+                  className="mt-2"
                 />
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 px-5 py-4 border-t border-border">
-              <Button className="flex-1" onClick={handleSave}>
+            <div className="flex gap-3 px-5 py-4 border-t border-border/50">
+              <Button 
+                className="flex-1 rounded-xl bg-primary hover:bg-primary/90" 
+                onClick={handleSave}
+              >
                 Sauvegarder
               </Button>
               <Button
-                variant="outline"
-                className="flex-1"
+                variant="ghost"
+                className="flex-1 rounded-xl"
                 onClick={() => setSettingsOpen(false)}
               >
                 Annuler

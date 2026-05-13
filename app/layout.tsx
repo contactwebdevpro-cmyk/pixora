@@ -37,13 +37,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="dark bg-background">
-      <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3211432354952402"
-          crossOrigin="anonymous"
-        />
-      </head>
       <body className="font-sans antialiased overflow-hidden">
         {children}
 

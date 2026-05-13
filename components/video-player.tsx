@@ -41,6 +41,7 @@ export function VideoPlayer() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isMuted, setIsMuted] = useState(false)
+  const [showControls, setShowControls] = useState(true)
 
   const currentIndex = channels.findIndex((ch) => ch.id === currentChannel?.id)
 
@@ -51,13 +52,11 @@ export function VideoPlayer() {
     setIsLoading(true)
     setError(null)
 
-    // Cleanup previous HLS instance
     if (hlsRef.current) {
       hlsRef.current.destroy()
       hlsRef.current = null
     }
 
-    // Check if it's an HLS stream
     if (url.includes('.m3u8') || url.includes('m3u')) {
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -82,7 +81,6 @@ export function VideoPlayer() {
           }
         })
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari)
         video.src = url
         video.addEventListener('loadedmetadata', () => {
           video.play().catch(() => {})
@@ -90,7 +88,6 @@ export function VideoPlayer() {
         })
       }
     } else {
-      // Direct video URL
       video.src = url
       video.play().catch(() => {
         setError('Flux indisponible')
@@ -153,6 +150,26 @@ export function VideoPlayer() {
       video.removeEventListener('error', handleError)
     }
   }, [])
+
+  // Auto-hide controls
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+    const handleMouseMove = () => {
+      setShowControls(true)
+      clearTimeout(timeout)
+      timeout = setTimeout(() => setShowControls(false), 3000)
+    }
+
+    if (isPlayerOpen) {
+      window.addEventListener('mousemove', handleMouseMove)
+      handleMouseMove()
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      clearTimeout(timeout)
+    }
+  }, [isPlayerOpen])
 
   const togglePlayPause = () => {
     const video = videoRef.current
@@ -220,8 +237,8 @@ export function VideoPlayer() {
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-50 bg-black flex flex-col"
         >
-          {/* Video Container */}
-          <div className="flex-1 relative">
+          {/* Video */}
+          <div className="flex-1 relative" onClick={togglePlayPause}>
             <video
               ref={videoRef}
               className="w-full h-full object-contain bg-black"
@@ -229,7 +246,7 @@ export function VideoPlayer() {
               playsInline
             />
 
-            {/* Loading Spinner */}
+            {/* Loading */}
             <AnimatePresence>
               {isLoading && !error && (
                 <motion.div
@@ -238,34 +255,40 @@ export function VideoPlayer() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 flex items-center justify-center"
                 >
-                  <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    <span className="text-sm text-muted-foreground">Chargement...</span>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Error State */}
+            {/* Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
                   className="absolute inset-0 flex items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="bg-card border border-border rounded-xl p-8 text-center max-w-sm">
-                    <div className="text-4xl mb-4">📡</div>
+                  <div className="bg-card border border-border rounded-2xl p-8 text-center max-w-sm">
+                    <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
+                      <span className="text-3xl">📡</span>
+                    </div>
                     <h3 className="text-foreground font-semibold mb-2">
                       {error}
                     </h3>
                     <p className="text-xs text-muted-foreground mb-6">
-                      La source ne répond pas
+                      La source ne repond pas
                     </p>
-                    <div className="flex gap-3 justify-center">
-                      <Button variant="outline" size="sm" onClick={retry}>
+                    <div className="flex gap-2 justify-center">
+                      <Button variant="outline" size="sm" onClick={retry} className="rounded-xl">
                         <RefreshCw className="w-4 h-4 mr-2" />
-                        Réessayer
+                        Reessayer
                       </Button>
-                      <Button variant="outline" size="sm" onClick={nextChannel}>
+                      <Button variant="outline" size="sm" onClick={nextChannel} className="rounded-xl">
                         <SkipForward className="w-4 h-4 mr-2" />
                         Suivant
                       </Button>
@@ -273,7 +296,7 @@ export function VideoPlayer() {
                         variant="outline"
                         size="sm"
                         onClick={handleClose}
-                        className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                        className="text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl"
                       >
                         <X className="w-4 h-4 mr-2" />
                         Fermer
@@ -285,25 +308,25 @@ export function VideoPlayer() {
             </AnimatePresence>
           </div>
 
-          {/* Controls Bar */}
+          {/* Controls */}
           <motion.div
             initial={{ y: 80 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-card border-t border-border px-4 py-3 flex items-center gap-4 shrink-0"
+            animate={{ y: showControls || error ? 0 : 80 }}
+            transition={{ duration: 0.3 }}
+            className="glass border-t border-border/50 px-5 py-3 flex items-center gap-4 shrink-0"
           >
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleClose}
-              className="text-destructive border-destructive/50 hover:bg-destructive/10"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-foreground">
+              <p className="text-sm font-medium truncate text-foreground">
                 {currentChannel?.name || '—'}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -312,10 +335,10 @@ export function VideoPlayer() {
             </div>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={togglePlayPause}
-              className="shrink-0"
+              className="shrink-0 rounded-xl h-9 w-9"
             >
               {isPlaying ? (
                 <Pause className="w-4 h-4" />
@@ -325,30 +348,30 @@ export function VideoPlayer() {
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={prevChannel}
               disabled={currentIndex <= 0}
-              className="shrink-0"
+              className="shrink-0 rounded-xl h-9 w-9"
             >
               <SkipBack className="w-4 h-4" />
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={nextChannel}
               disabled={currentIndex >= channels.length - 1}
-              className="shrink-0"
+              className="shrink-0 rounded-xl h-9 w-9"
             >
               <SkipForward className="w-4 h-4" />
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => currentChannel && toggleFavorite(currentChannel.id)}
-              className={cn('shrink-0', isFavorite && 'text-destructive border-destructive/50')}
+              className={cn('shrink-0 rounded-xl h-9 w-9', isFavorite && 'text-amber-500')}
             >
               <Star className={cn('w-4 h-4', isFavorite && 'fill-current')} />
             </Button>
@@ -358,7 +381,7 @@ export function VideoPlayer() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsMuted(!isMuted)}
-                className="w-8 h-8"
+                className="w-8 h-8 rounded-xl"
               >
                 {isMuted ? (
                   <VolumeX className="w-4 h-4" />
@@ -366,23 +389,20 @@ export function VideoPlayer() {
                   <Volume2 className="w-4 h-4" />
                 )}
               </Button>
-              <span className="text-xs text-muted-foreground w-8 text-right tabular-nums">
-                {volume}
-              </span>
               <Slider
                 value={[volume]}
                 onValueChange={([v]) => setVolume(v)}
                 max={100}
                 step={1}
-                className="w-24"
+                className="w-20"
               />
             </div>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={toggleFullscreen}
-              className="shrink-0"
+              className="shrink-0 rounded-xl h-9 w-9"
             >
               <Maximize className="w-4 h-4" />
             </Button>
