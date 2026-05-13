@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import Script from 'next/script'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -36,6 +37,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="dark bg-background">
+      <head>
+        <Script
+          async
+          strategy="afterInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3211432354952402"
+          crossOrigin="anonymous"
+        />
+      </head>
+
       <body className="font-sans antialiased overflow-hidden">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
