@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -335,12 +335,9 @@ export function FilmMode() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-2 justify-center mb-5">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Choisissez la langue de lecture
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground text-center mb-5">
+                Choisissez la langue de lecture
+              </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <Button
@@ -390,18 +387,8 @@ export function FilmMode() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 z-20 bg-black flex items-center justify-center"
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="relative">
-                      <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                      <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary/20" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Chargement du lecteur...</p>
-                      <div className="flex items-center gap-2 justify-center mt-3 text-xs text-primary/70">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Protection anti-pub active</span>
-                      </div>
-                    </div>
+                  <div className="relative">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
                   </div>
                 </motion.div>
               )}
@@ -444,11 +431,6 @@ export function FilmMode() {
                 <p className="text-xs text-white/50">
                   {selectedFilm.release_date ? new Date(selectedFilm.release_date).getFullYear() : ''}
                 </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <ShieldCheck className="w-4 h-4 text-green-400" />
-                <span className="text-xs text-green-400 font-medium">Protege</span>
               </div>
 
               <span className={`text-xs px-3 py-1.5 rounded-xl font-medium shrink-0 ${
