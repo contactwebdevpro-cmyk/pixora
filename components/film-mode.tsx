@@ -430,12 +430,12 @@ export function FilmMode() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40"
+              className="absolute top-1 right-2 sm:top-2 sm:right-4 z-40"
             >
               <img
                 src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/pixora/refs/heads/main/logo.png"
                 alt="Pixora"
-                className="h-6 sm:h-8 md:h-10 w-auto object-contain drop-shadow-lg"
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain drop-shadow-lg"
               />
             </motion.div>
 
