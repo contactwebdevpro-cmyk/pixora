@@ -23,6 +23,8 @@ export function FilmMode() {
   const [films, setFilms] = useState<Film[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
+  const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
+  const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
 
   const searchFilms = useCallback(async () => {
@@ -57,11 +59,21 @@ export function FilmMode() {
   }
 
   const playFilm = (film: Film) => {
-    setSelectedFilm(film)
+    setShowLangChoice(film)
+  }
+
+  const selectLanguage = (lang: 'fr' | 'en') => {
+    setSelectedLang(lang)
+    setSelectedFilm(showLangChoice)
+    setShowLangChoice(null)
   }
 
   const closePlayer = () => {
     setSelectedFilm(null)
+  }
+
+  const closeLangChoice = () => {
+    setShowLangChoice(null)
   }
 
   const toggleFullscreen = () => {
@@ -75,9 +87,12 @@ export function FilmMode() {
     }
   }
 
-  // VidSrc embed URL
-  const getEmbedUrl = (tmdbId: number) => {
-    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=true&autoNext=false`
+  // Embed URLs based on language choice
+  const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') => {
+    if (lang === 'fr') {
+      return `https://frembed.bond/embed/movie/${tmdbId}`
+    }
+    return `https://vidsrc.pro/embed/movie/${tmdbId}`
   }
 
   return (
@@ -173,6 +188,74 @@ export function FilmMode() {
         )}
       </motion.div>
 
+      {/* Language Choice Modal */}
+      <AnimatePresence>
+        {showLangChoice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={closeLangChoice}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                {showLangChoice.poster_path && (
+                  <img
+                    src={`${TMDB_IMG}${showLangChoice.poster_path}`}
+                    alt={showLangChoice.title}
+                    className="w-20 h-28 object-cover rounded-lg"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold truncate">{showLangChoice.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {showLangChoice.release_date ? new Date(showLangChoice.release_date).getFullYear() : 'N/A'}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={closeLangChoice}
+                  className="shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4 text-center">
+                Choisissez la langue de lecture
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => selectLanguage('fr')}
+                  className="h-20 flex flex-col gap-2 hover:border-primary hover:bg-primary/10"
+                >
+                  <span className="text-2xl">🇫🇷</span>
+                  <span className="font-semibold">Français (VF)</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => selectLanguage('en')}
+                  className="h-20 flex flex-col gap-2 hover:border-blue-400 hover:bg-blue-400/10"
+                >
+                  <span className="text-2xl">🇬🇧</span>
+                  <span className="font-semibold">English (EN)</span>
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Film Player */}
       <AnimatePresence>
         {selectedFilm && (
@@ -184,7 +267,7 @@ export function FilmMode() {
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
             <iframe
-              src={getEmbedUrl(selectedFilm.id)}
+              src={getEmbedUrl(selectedFilm.id, selectedLang)}
               className="flex-1 w-full border-none"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
@@ -212,8 +295,12 @@ export function FilmMode() {
                 </p>
               </div>
 
-              <span className="text-xs text-success bg-success/10 border border-success/30 px-2.5 py-1 rounded-full shrink-0">
-                🇫🇷 VF Auto
+              <span className={`text-xs px-2.5 py-1 rounded-full shrink-0 ${
+                selectedLang === 'fr' 
+                  ? 'text-success bg-success/10 border border-success/30' 
+                  : 'text-blue-400 bg-blue-400/10 border border-blue-400/30'
+              }`}>
+                {selectedLang === 'fr' ? '🇫🇷 VF' : '🇬🇧 EN'}
               </span>
 
               <Button
