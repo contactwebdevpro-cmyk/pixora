@@ -193,11 +193,14 @@ export function FilmMode() {
   }
 
   const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') => {
+    // Using vidsrc.cc which has less intrusive ads
     if (lang === 'fr') {
-      return `https://frembed.bond/embed/movie/${tmdbId}`
+      return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?lang=fr`
     }
-    return `https://vidsrc.pro/embed/movie/${tmdbId}`
+    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
   }
+
+  const [showAdWarning, setShowAdWarning] = useState(true)
 
   const handleIframeLoad = () => {
     setIframeLoading(false)
@@ -458,6 +461,48 @@ export function FilmMode() {
               }
             `}</style>
             
+            {/* Ad warning overlay */}
+            <AnimatePresence>
+              {showAdWarning && !iframeLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 bg-amber-500/90 backdrop-blur-sm text-black px-4 py-3 rounded-xl shadow-lg max-w-md mx-4 text-center"
+                >
+                  <p className="text-sm font-medium mb-2">
+                    Pour bloquer les pubs, installez uBlock Origin
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <a 
+                      href="https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs underline hover:no-underline"
+                    >
+                      Chrome
+                    </a>
+                    <span className="text-xs">|</span>
+                    <a 
+                      href="https://addons.mozilla.org/fr/firefox/addon/ublock-origin/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs underline hover:no-underline"
+                    >
+                      Firefox
+                    </a>
+                    <span className="text-xs">|</span>
+                    <button 
+                      onClick={() => setShowAdWarning(false)}
+                      className="text-xs underline hover:no-underline"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Loading overlay */}
             <AnimatePresence>
               {iframeLoading && (
@@ -473,14 +518,13 @@ export function FilmMode() {
               )}
             </AnimatePresence>
             
-            {/* Iframe with mobile-friendly settings and ad-blocking sandbox */}
+            {/* Iframe with mobile-friendly settings */}
             <iframe
               src={getEmbedUrl(selectedFilm.id, selectedLang)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               referrerPolicy="no-referrer"
-              sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
               onLoad={handleIframeLoad}
               style={{ minHeight: '200px' }}
             />
