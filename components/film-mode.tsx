@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, SkipForward } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -19,6 +19,9 @@ const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
+// Délai avant auto-switch si le serveur ne répond pas
+const AUTO_SWITCH_TIMEOUT = 15000
+
 export function FilmMode() {
   const [query, setQuery] = useState('')
   const [films, setFilms] = useState<Film[]>([])
@@ -28,31 +31,39 @@ export function FilmMode() {
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
-  const [showAdWarning, setShowAdWarning] = useState(true)
   const [serverIndex, setServerIndex] = useState(0)
+  const [autoSwitching, setAutoSwitching] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-
+  // ─── Serveurs FR : frembed/uqload EN PREMIER (sans pub) ─────────────────
   const FR_SERVERS = [
+    (id: number) => `https://frembed.pro/api/film.php?id=${id}`,
     (id: number) => `https://frembed.one/api/film.php?id=${id}`,
     (id: number) => `https://vidsrc.cc/v2/embed/movie/${id}?ds_lang=fr`,
     (id: number) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
     (id: number) => `https://2embed.cc/embed/${id}`,
   ]
+  const FR_SERVER_LABELS = ['Frembed 1', 'Frembed 2', 'VidSrc FR', 'MultiEmbed', '2Embed']
 
-  const FR_SERVER_LABELS = ['FrembedPro', 'VidSrc FR', 'MultiEmbed', '2Embed']
+  // ─── Serveurs EN ────────────────────────────────────────────────────────────
+  const EN_SERVERS = [
+    (id: number) => `https://frembed.pro/api/film.php?id=${id}&lang=en`,
+    (id: number) => `https://vidsrc.cc/v2/embed/movie/${id}`,
+    (id: number) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+  ]
+  const EN_SERVER_LABELS = ['Frembed', 'VidSrc EN', 'MultiEmbed']
 
-  // Load popular films on mount
+  const getServers = (lang: 'fr' | 'en') => (lang === 'fr' ? FR_SERVERS : EN_SERVERS)
+  const getServerLabels = (lang: 'fr' | 'en') => (lang === 'fr' ? FR_SERVER_LABELS : EN_SERVER_LABELS)
+
+  // ─── Films populaires ────────────────────────────────────────────────────
   useEffect(() => {
     const loadPopularFilms = async () => {
       try {
-        const res = await fetch(
-          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
-        )
+        const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`)
         const data = await res.json()
-        if (data.results) {
-          setFilms(data.results)
-        }
+        if (data.results) setFilms(data.results)
       } catch {
         setStatus('Erreur lors du chargement des films populaires.')
       } finally {
@@ -63,31 +74,15 @@ export function FilmMode() {
     loadPopularFilms()
   }, [])
 
-  // Popup blocking: three-layer defence
+  // ─── Anti-popup ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedFilm) return
-
-    // Layer 1 – Override window.open (blocks same-origin calls that leak through)
     const originalOpen = window.open
     window.open = () => null
-
-    // Layer 2 – window.blur fires whenever any cross-origin iframe steals focus
-    // (e.g. window.open inside the iframe).  Re-focusing the parent prevents
-    // the popup from becoming the active tab.
-    const handleBlur = () => {
-      window.focus()
-      setTimeout(() => window.focus(), 0)
-    }
-
-    // Layer 3 – beforeunload guard (some embeds try to navigate the parent)
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ''
-    }
-
+    const handleBlur = () => { window.focus(); setTimeout(() => window.focus(), 0) }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('blur', handleBlur)
     window.addEventListener('beforeunload', handleBeforeUnload)
-
     return () => {
       window.open = originalOpen
       window.removeEventListener('blur', handleBlur)
@@ -95,21 +90,38 @@ export function FilmMode() {
     }
   }, [selectedFilm])
 
+  // ─── Auto-switch si iframe ne charge pas dans le délai ─────────────────
+  useEffect(() => {
+    if (!selectedFilm || !iframeLoading) {
+      if (autoSwitchTimerRef.current) {
+        clearTimeout(autoSwitchTimerRef.current)
+        autoSwitchTimerRef.current = null
+      }
+      return
+    }
+    autoSwitchTimerRef.current = setTimeout(() => {
+      const servers = getServers(selectedFilm.lang)
+      const nextIdx = serverIndex + 1
+      if (nextIdx < servers.length) {
+        setAutoSwitching(true)
+        setServerIndex(nextIdx)
+        setIframeLoading(true)
+        setTimeout(() => setAutoSwitching(false), 2500)
+      }
+    }, AUTO_SWITCH_TIMEOUT)
+    return () => {
+      if (autoSwitchTimerRef.current) clearTimeout(autoSwitchTimerRef.current)
+    }
+  }, [selectedFilm, serverIndex, iframeLoading])
 
-
+  // ─── Recherche ─────────────────────────────────────────────────────────
   const searchFilms = useCallback(async () => {
     if (!query.trim()) {
-      // If empty query, reload popular films
       setIsLoading(true)
       try {
-        const res = await fetch(
-          `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`
-        )
+        const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`)
         const data = await res.json()
-        if (data.results) {
-          setFilms(data.results)
-          setStatus('')
-        }
+        if (data.results) { setFilms(data.results); setStatus('') }
       } catch {
         setStatus('Erreur lors du chargement.')
       } finally {
@@ -117,21 +129,18 @@ export function FilmMode() {
       }
       return
     }
-    
     setIsLoading(true)
     setStatus('')
-    
     try {
       const res = await fetch(
         `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&page=1`
       )
       const data = await res.json()
-      
       if (data.results && data.results.length > 0) {
         setFilms(data.results)
       } else {
         setFilms([])
-        setStatus('Aucun film trouve.')
+        setStatus('Aucun film trouvé.')
       }
     } catch {
       setStatus('Erreur lors de la recherche.')
@@ -141,14 +150,10 @@ export function FilmMode() {
   }, [query])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      searchFilms()
-    }
+    if (e.key === 'Enter') searchFilms()
   }
 
-  const playFilm = (film: Film) => {
-    setShowLangChoice(film)
-  }
+  const playFilm = (film: Film) => setShowLangChoice(film)
 
   const selectLanguage = (lang: 'fr' | 'en') => {
     if (showLangChoice) {
@@ -162,39 +167,39 @@ export function FilmMode() {
   const closePlayer = () => {
     setSelectedFilm(null)
     setIframeLoading(true)
-    setShowAdWarning(true)
+    if (autoSwitchTimerRef.current) clearTimeout(autoSwitchTimerRef.current)
   }
 
-  const closeLangChoice = () => {
-    setShowLangChoice(null)
-  }
+  const closeLangChoice = () => setShowLangChoice(null)
 
   const toggleFullscreen = () => {
     const container = document.getElementById('film-player-container')
     if (container) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen()
-      } else {
-        container.requestFullscreen()
-      }
+      if (document.fullscreenElement) document.exitFullscreen()
+      else container.requestFullscreen()
     }
   }
 
-  const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') => {
-    if (lang === 'fr') {
-      return FR_SERVERS[serverIndex](tmdbId)
-    }
-    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
-  }
+  const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') =>
+    getServers(lang)[serverIndex](tmdbId)
 
   const switchServer = (idx: number) => {
     setServerIndex(idx)
     setIframeLoading(true)
   }
 
-  const handleIframeLoad = () => {
-    setIframeLoading(false)
+  const tryNextServer = () => {
+    if (!selectedFilm) return
+    const nextIdx = serverIndex + 1
+    if (nextIdx < getServers(selectedFilm.lang).length) {
+      setServerIndex(nextIdx)
+      setIframeLoading(true)
+    }
   }
+
+  const hasNextServer = selectedFilm
+    ? serverIndex + 1 < getServers(selectedFilm.lang).length
+    : false
 
   return (
     <>
@@ -216,9 +221,9 @@ export function FilmMode() {
               className="pl-11 h-12 bg-card/60 border-border/40 rounded-2xl focus:border-primary/60 focus:bg-card transition-all text-sm"
             />
           </div>
-          <Button 
-            onClick={searchFilms} 
-            disabled={isLoading} 
+          <Button
+            onClick={searchFilms}
+            disabled={isLoading}
             className="h-12 px-6 rounded-2xl bg-primary hover:bg-primary/90 font-medium"
           >
             {isLoading ? (
@@ -232,24 +237,18 @@ export function FilmMode() {
           </Button>
         </div>
 
-        {/* Section Title */}
         {!isLoading && films.length > 0 && (
           <div className="mb-5">
             <h2 className="text-lg font-semibold text-foreground">
-              {query.trim() ? `Resultats pour "${query}"` : 'Films Populaires'}
+              {query.trim() ? `Résultats pour "${query}"` : 'Films Populaires'}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {query.trim() ? `${films.length} films trouves` : 'Les films les plus regardes du moment'}
+              {query.trim() ? `${films.length} films trouvés` : 'Les films les plus regardés du moment'}
             </p>
           </div>
         )}
 
-        {/* Status */}
-        {status && (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            {status}
-          </div>
-        )}
+        {status && <div className="text-center py-12 text-muted-foreground text-sm">{status}</div>}
 
         {/* Film Grid */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -278,16 +277,12 @@ export function FilmMode() {
                         <Play className="w-10 h-10 opacity-30" />
                       </div>
                     )}
-                    
-                    {/* Rating badge */}
                     {film.vote_average > 0 && (
                       <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm">
                         <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                         <span className="text-xs font-medium text-white">{film.vote_average.toFixed(1)}</span>
                       </div>
                     )}
-                    
-                    {/* Play overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-400 flex items-center justify-center">
                       <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
@@ -298,7 +293,6 @@ export function FilmMode() {
                       </motion.div>
                     </div>
                   </div>
-                  
                   <div className="p-3.5">
                     <h3 className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
                       {film.title}
@@ -316,7 +310,6 @@ export function FilmMode() {
           </div>
         </div>
 
-        {/* Empty State */}
         {films.length === 0 && !status && !isLoading && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
@@ -325,7 +318,7 @@ export function FilmMode() {
               </div>
               <h2 className="text-xl font-semibold mb-2 text-foreground">Rechercher un film</h2>
               <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                Utilisez la barre de recherche pour trouver vos films preferes
+                Utilisez la barre de recherche pour trouver vos films préférés
               </p>
             </div>
           </div>
@@ -350,7 +343,7 @@ export function FilmMode() {
               onClick={(e) => e.stopPropagation()}
               className="bg-card border border-border/50 rounded-3xl p-7 max-w-md w-full shadow-2xl"
             >
-              <div className="flex items-start gap-5 mb-7">
+              <div className="flex items-start gap-5 mb-6">
                 {showLangChoice.poster_path && (
                   <img
                     src={`${TMDB_IMG}${showLangChoice.poster_path}`}
@@ -370,19 +363,19 @@ export function FilmMode() {
                     </div>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeLangChoice}
-                  className="shrink-0 rounded-xl h-9 w-9 -mt-1 -mr-1"
-                >
+                <Button variant="ghost" size="icon" onClick={closeLangChoice} className="shrink-0 rounded-xl h-9 w-9 -mt-1 -mr-1">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
 
-              <p className="text-sm text-muted-foreground text-center mb-5">
-                Choisissez la langue de lecture
-              </p>
+              {/* Badge sans pub */}
+              <div className="flex justify-center mb-5">
+                <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium">
+                  ✓ Serveur prioritaire sans publicité (Frembed/Uqload)
+                </span>
+              </div>
+
+              <p className="text-sm text-muted-foreground text-center mb-5">Choisissez la langue de lecture</p>
 
               <div className="grid grid-cols-2 gap-4">
                 <Button
@@ -391,7 +384,7 @@ export function FilmMode() {
                   className="h-20 flex flex-col gap-2 rounded-2xl border-border/50 hover:border-primary hover:bg-primary/10 transition-all"
                 >
                   <span className="text-2xl">FR</span>
-                  <span className="font-medium text-sm">Francais (VF)</span>
+                  <span className="font-medium text-sm">Français (VF)</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -407,7 +400,7 @@ export function FilmMode() {
         )}
       </AnimatePresence>
 
-      {/* Player with Ad Blocker */}
+      {/* Player */}
       <AnimatePresence>
         {selectedFilm && (
           <motion.div
@@ -418,7 +411,7 @@ export function FilmMode() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black flex flex-col"
           >
-            {/* Logo in top right corner - responsive */}
+            {/* Logo */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -431,51 +424,21 @@ export function FilmMode() {
               </span>
             </motion.div>
 
-
-            
-            {/* Ad warning overlay */}
+            {/* Notif auto-switch */}
             <AnimatePresence>
-              {showAdWarning && !iframeLoading && (
+              {autoSwitching && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 bg-amber-500/90 backdrop-blur-sm text-black px-4 py-3 rounded-xl shadow-lg max-w-md mx-4 text-center"
+                  className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-black/80 backdrop-blur-sm text-white/90 px-4 py-2 rounded-xl border border-white/10 text-sm whitespace-nowrap"
                 >
-                  <p className="text-sm font-medium mb-2">
-                    Pour bloquer les pubs, installez uBlock Origin
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <a 
-                      href="https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs underline hover:no-underline"
-                    >
-                      Chrome
-                    </a>
-                    <span className="text-xs">|</span>
-                    <a 
-                      href="https://addons.mozilla.org/fr/firefox/addon/ublock-origin/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs underline hover:no-underline"
-                    >
-                      Firefox
-                    </a>
-                    <span className="text-xs">|</span>
-                    <button 
-                      onClick={() => setShowAdWarning(false)}
-                      className="text-xs underline hover:no-underline"
-                    >
-                      Fermer
-                    </button>
-                  </div>
+                  🔄 Passage automatique vers {getServerLabels(selectedFilm.lang)[serverIndex]}…
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Loading overlay */}
+            {/* Loading */}
             <AnimatePresence>
               {iframeLoading && (
                 <motion.div
@@ -483,77 +446,95 @@ export function FilmMode() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 z-20 bg-black flex items-center justify-center"
                 >
-                  <div className="relative">
+                  <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    <span className="text-sm text-white/50">
+                      Chargement via {getServerLabels(selectedFilm.lang)[serverIndex]}…
+                    </span>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-            
-            {/* Iframe with mobile-friendly settings */}
+
+            {/* Iframe — key forcée au changement de serveur pour recharger */}
             <iframe
+              key={`${selectedFilm.film.id}-${serverIndex}`}
               src={getEmbedUrl(selectedFilm.film.id, selectedFilm.lang)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               referrerPolicy="no-referrer"
-              onLoad={handleIframeLoad}
+              onLoad={() => setIframeLoading(false)}
               style={{ minHeight: '200px' }}
             />
-            
-            {/* Bottom controls bar - responsive */}
+
+            {/* Controls bar */}
             <motion.div
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="relative z-30 bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/5 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-5 shrink-0"
+              className="relative z-30 bg-gradient-to-t from-black via-black/95 to-black/80 border-t border-white/5 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-4 shrink-0"
             >
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={closePlayer}
-                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl gap-1 sm:gap-2 px-2 sm:px-3"
+                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl gap-1 sm:gap-2 px-2 sm:px-3 shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Retour</span>
               </Button>
 
-              <div className="h-6 w-px bg-white/10 hidden sm:block" />
+              <div className="h-6 w-px bg-white/10 hidden sm:block shrink-0" />
 
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-semibold truncate text-white">
-                  {selectedFilm.film.title}
-                </p>
+                <p className="text-xs sm:text-sm font-semibold truncate text-white">{selectedFilm.film.title}</p>
                 <p className="text-[10px] sm:text-xs text-white/50 hidden sm:block">
                   {selectedFilm.film.release_date ? new Date(selectedFilm.film.release_date).getFullYear() : ''}
                 </p>
               </div>
 
+              {/* Langue */}
               <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 ${
-                selectedFilm.lang === 'fr' 
-                  ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30' 
+                selectedFilm.lang === 'fr'
+                  ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30'
                   : 'text-blue-400 bg-blue-400/15 border border-blue-400/30'
               }`}>
                 {selectedFilm.lang === 'fr' ? 'VF' : 'VO'}
               </span>
 
-              {/* Server switcher - only for FR */}
-              {selectedFilm.lang === 'fr' && (
-                <div className="hidden sm:flex items-center gap-1 shrink-0">
-                  {FR_SERVER_LABELS.map((label, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => switchServer(idx)}
-                      className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-all ${
-                        serverIndex === idx
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+              {/* Sélecteur de serveur (desktop) */}
+              <div className="hidden sm:flex items-center gap-1 shrink-0">
+                {getServerLabels(selectedFilm.lang).map((label, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => switchServer(idx)}
+                    className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-all ${
+                      serverIndex === idx
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                    {/* Marque les serveurs frembed sans pub */}
+                    {((selectedFilm.lang === 'fr' && idx <= 1) || (selectedFilm.lang === 'en' && idx === 0)) && (
+                      <span className="ml-1 text-emerald-400 text-[9px]">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Bouton Film indispo? → serveur suivant */}
+              {hasNextServer && !iframeLoading && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={tryNextServer}
+                  className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-1 px-2 sm:px-3 text-[10px] sm:text-xs shrink-0"
+                >
+                  <SkipForward className="w-3 h-3" />
+                  <span className="hidden sm:inline">Film indispo?</span>
+                </Button>
               )}
 
               <Button
