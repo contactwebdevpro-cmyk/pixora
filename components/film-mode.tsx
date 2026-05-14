@@ -31,7 +31,7 @@ export function FilmMode() {
   const [showAdWarning, setShowAdWarning] = useState(true)
   const [serverIndex, setServerIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
-  const overlayRef = useRef<HTMLDivElement>(null)
+
 
   const FR_SERVERS = [
     (id: number) => `https://frembed.one/api/film.php?id=${id}`,
@@ -95,20 +95,7 @@ export function FilmMode() {
     }
   }, [selectedFilm])
 
-  // Transparent click-pass-through overlay handler.
-  // The overlay sits above the iframe with pointer-events:all, intercepting
-  // every mousedown.  We remove pointer-events for exactly one rAF tick so the
-  // underlying player controls receive the legitimate click, then immediately
-  // restore the shield.  Any popup triggered by that click is caught by the
-  // blur handler above.
-  const handleOverlayMouseDown = useCallback(() => {
-    const el = overlayRef.current
-    if (!el) return
-    el.style.pointerEvents = 'none'
-    requestAnimationFrame(() => {
-      if (overlayRef.current) overlayRef.current.style.pointerEvents = 'all'
-    })
-  }, [])
+
 
   const searchFilms = useCallback(async () => {
     if (!query.trim()) {
@@ -444,18 +431,7 @@ export function FilmMode() {
               </span>
             </motion.div>
 
-            {/* Click-interceptor overlay
-                 – pointer-events:all blocks every click from reaching the iframe
-                 – handleOverlayMouseDown lifts the shield for exactly one rAF
-                   tick so player controls work normally
-                 – window.blur + window.focus() catches any popup the iframe
-                   manages to open during that tick                         */}
-            <div
-              ref={overlayRef}
-              onMouseDown={handleOverlayMouseDown}
-              className="absolute inset-0 z-10"
-              style={{ pointerEvents: 'all', cursor: 'default' }}
-            />
+
             
             {/* Ad warning overlay */}
             <AnimatePresence>
