@@ -28,6 +28,7 @@ export function FilmMode() {
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
+  const [showAdWarning, setShowAdWarning] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Load popular films on mount
@@ -200,8 +201,6 @@ export function FilmMode() {
     }
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
   }
-
-  const [showAdWarning, setShowAdWarning] = useState(true)
 
   const handleIframeLoad = () => {
     setIframeLoading(false)
