@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, ShieldCheck, ExternalLink, X, AlertTriangle, Chrome, Globe } from 'lucide-react'
+import { Shield, ExternalLink, AlertTriangle } from 'lucide-react'
 
 const UBLOCK_LINKS = {
   chrome: 'https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm',
@@ -20,7 +20,6 @@ function detectBrowser(): 'chrome' | 'firefox' | 'edge' | 'other' {
 }
 
 async function checkUBlock(): Promise<boolean> {
-  // Try to fetch a known ad-server domain — uBlock blocks it, plain fetch succeeds
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 1500)
@@ -29,148 +28,111 @@ async function checkUBlock(): Promise<boolean> {
       { signal: controller.signal, mode: 'no-cors', cache: 'no-store' }
     )
     clearTimeout(timeout)
-    // If fetch "succeeds" (even opaque), ads are NOT blocked
     void res
     return false
   } catch {
-    // Blocked or network error — treat as blocked
     return true
   }
 }
 
-const DISMISSED_KEY = 'pixora_ublock_dismissed'
+const ACCEPTED_KEY = 'pixora_ublock_accepted'
 
 export function UBlockBanner() {
-  const [status, setStatus] = useState<'checking' | 'detected' | 'not-detected' | 'dismissed'>('checking')
+  const [visible, setVisible] = useState(false)
   const [browser, setBrowser] = useState<'chrome' | 'firefox' | 'edge' | 'other'>('other')
 
   useEffect(() => {
-    // Check if already dismissed this session
+    // Déjà accepté → on n'affiche plus jamais
     try {
-      if (localStorage.getItem(DISMISSED_KEY) === '1') {
-        setStatus('dismissed')
-        return
-      }
+      if (localStorage.getItem(ACCEPTED_KEY) === '1') return
     } catch {}
 
     setBrowser(detectBrowser())
 
     checkUBlock().then((blocked) => {
-      setStatus(blocked ? 'detected' : 'not-detected')
+      if (!blocked) setVisible(true)
     })
   }, [])
 
-  const dismiss = () => {
-    try { localStorage.setItem(DISMISSED_KEY, '1') } catch {}
-    setStatus('dismissed')
+  const accept = () => {
+    try { localStorage.setItem(ACCEPTED_KEY, '1') } catch {}
+    setVisible(false)
   }
 
   const installUrl =
-    browser === 'firefox'
-      ? UBLOCK_LINKS.firefox
-      : browser === 'edge'
-      ? UBLOCK_LINKS.edge
-      : UBLOCK_LINKS.chrome
+    browser === 'firefox' ? UBLOCK_LINKS.firefox :
+    browser === 'edge'    ? UBLOCK_LINKS.edge :
+                            UBLOCK_LINKS.chrome
 
   const browserLabel =
-    browser === 'firefox'
-      ? 'Firefox'
-      : browser === 'edge'
-      ? 'Edge'
-      : 'Chrome'
+    browser === 'firefox' ? 'Firefox' :
+    browser === 'edge'    ? 'Edge' :
+                            'Chrome'
 
   return (
     <AnimatePresence>
-      {status === 'not-detected' && (
+      {visible && (
         <motion.div
-          key="ublock-banner"
-          initial={{ opacity: 0, y: -80 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -80 }}
-          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed top-0 inset-x-0 z-[200]"
+          key="ublock-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
         >
-          {/* Backdrop blur bar */}
-          <div className="relative bg-card/90 backdrop-blur-xl border-b border-border/60 shadow-2xl">
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.92, opacity: 0, y: 20 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative w-full max-w-md bg-card border border-border/60 rounded-3xl shadow-2xl overflow-hidden"
+          >
             {/* Accent line top */}
             <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
 
-            <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
+            <div className="p-8 flex flex-col items-center text-center gap-5">
               {/* Icon */}
-              <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30">
-                <AlertTriangle className="w-4.5 h-4.5 text-amber-400" />
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30">
+                <AlertTriangle className="w-8 h-8 text-amber-400" />
               </div>
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground leading-tight">
-                  Publicités détectées sur ce site
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  Installez <span className="text-primary font-medium">uBlock Origin</span> pour une expérience sans pubs et protéger votre vie privée.
+              {/* Title */}
+              <div>
+                <h2 className="text-lg font-bold text-foreground">
+                  Publicités détectées
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Ce site contient des publicités. Installez{' '}
+                  <span className="text-primary font-semibold">uBlock Origin</span>{' '}
+                  pour une expérience sans pubs et protéger votre vie privée.
                 </p>
               </div>
 
-              {/* CTA button */}
-              <motion.a
-                href={installUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors duration-200 shadow-lg shadow-primary/20"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                Installer pour {browserLabel}
-                <ExternalLink className="w-3 h-3 opacity-70" />
-              </motion.a>
+              {/* Buttons */}
+              <div className="flex flex-col gap-3 w-full mt-1">
+                <motion.a
+                  href={installUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={accept}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors duration-200 shadow-lg shadow-primary/20"
+                >
+                  <Shield className="w-4 h-4" />
+                  Installer uBlock Origin pour {browserLabel}
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </motion.a>
 
-              {/* Dismiss */}
-              <button
-                onClick={dismiss}
-                className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors duration-200"
-                aria-label="Fermer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                <button
+                  onClick={accept}
+                  className="w-full py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors duration-200"
+                >
+                  Continuer sans bloqueur
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* Warning overlay hint */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 rounded-lg bg-card/80 backdrop-blur-md border border-border/40 shadow-lg pointer-events-none"
-          >
-            <p className="text-[10px] text-muted-foreground/70 tracking-wide whitespace-nowrap">
-              ⚠️ Sans bloqueur, des publicités peuvent apparaître pendant le streaming
-            </p>
           </motion.div>
-        </motion.div>
-      )}
-
-      {status === 'detected' && (
-        <motion.div
-          key="ublock-ok"
-          initial={{ opacity: 0, y: -40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -40 }}
-          transition={{ duration: 0.4 }}
-          className="fixed top-0 inset-x-0 z-[200]"
-          onAnimationComplete={() => {
-            // Auto-dismiss after 2.5s
-            setTimeout(dismiss, 2500)
-          }}
-        >
-          <div className="bg-primary/10 backdrop-blur-xl border-b border-primary/20">
-            <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-3">
-              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-xs text-primary font-medium">
-                uBlock Origin détecté — Vous profitez d'une navigation sans publicités ✓
-              </p>
-            </div>
-          </div>
         </motion.div>
       )}
     </AnimatePresence>
