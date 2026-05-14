@@ -195,9 +195,8 @@ export function FilmMode() {
   }
 
   const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') => {
-    // Using vidsrc.cc which has less intrusive ads
     if (lang === 'fr') {
-      return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?lang=fr`
+      return `https://frembed.pro/api/film.php?id=${tmdbId}`
     }
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
   }
