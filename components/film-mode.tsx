@@ -29,7 +29,17 @@ export function FilmMode() {
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
   const [showAdWarning, setShowAdWarning] = useState(true)
+  const [serverIndex, setServerIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const FR_SERVERS = [
+    (id: number) => `https://frembed.one/api/film.php?id=${id}`,
+    (id: number) => `https://vidsrc.cc/v2/embed/movie/${id}?ds_lang=fr`,
+    (id: number) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+    (id: number) => `https://2embed.cc/embed/${id}`,
+  ]
+
+  const FR_SERVER_LABELS = ['FrembedPro', 'VidSrc FR', 'MultiEmbed', '2Embed']
 
   // Load popular films on mount
   useEffect(() => {
@@ -168,6 +178,7 @@ export function FilmMode() {
   const selectLanguage = (lang: 'fr' | 'en') => {
     if (showLangChoice) {
       setIframeLoading(true)
+      setServerIndex(0)
       setSelectedFilm({ film: showLangChoice, lang })
       setShowLangChoice(null)
     }
@@ -196,9 +207,14 @@ export function FilmMode() {
 
   const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') => {
     if (lang === 'fr') {
-      return `https://frembed.pro/api/film.php?id=${tmdbId}`
+      return FR_SERVERS[serverIndex](tmdbId)
     }
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`
+  }
+
+  const switchServer = (idx: number) => {
+    setServerIndex(idx)
+    setIframeLoading(true)
   }
 
   const handleIframeLoad = () => {
@@ -563,6 +579,25 @@ export function FilmMode() {
               }`}>
                 {selectedFilm.lang === 'fr' ? 'VF' : 'VO'}
               </span>
+
+              {/* Server switcher - only for FR */}
+              {selectedFilm.lang === 'fr' && (
+                <div className="hidden sm:flex items-center gap-1 shrink-0">
+                  {FR_SERVER_LABELS.map((label, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => switchServer(idx)}
+                      className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-all ${
+                        serverIndex === idx
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <Button
                 variant="ghost"
