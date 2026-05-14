@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, SkipForward } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -19,62 +19,23 @@ const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
-// Délai avant auto-switch si le serveur ne répond pas
-const AUTO_SWITCH_TIMEOUT = 15000
+// Frembed 2 — hébergé sur Uqload (sans publicité intrusive)
+const getEmbedUrl = (id: number, lang: 'fr' | 'en') =>
+  lang === 'fr'
+    ? `https://frembed.one/api/film.php?id=${id}`
+    : `https://frembed.one/api/film.php?id=${id}&lang=en`
 
 export function FilmMode() {
   const [query, setQuery] = useState('')
   const [films, setFilms] = useState<Film[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [selectedFilm, setSelectedFilm] = useState<{ film: Film; lang: 'fr' | 'en' } | null>(null)
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
-  const [serverIndex, setServerIndex] = useState(0)
-  const [autoSwitching, setAutoSwitching] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ─── Serveurs FR : frembed/uqload EN PREMIER (sans pub) ─────────────────
-  const FR_SERVERS = [
-    (id: number) => `https://frembed.pro/api/film.php?id=${id}`,
-    (id: number) => `https://frembed.one/api/film.php?id=${id}`,
-    (id: number) => `https://vidsrc.cc/v2/embed/movie/${id}?ds_lang=fr`,
-    (id: number) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-    (id: number) => `https://2embed.cc/embed/${id}`,
-  ]
-  const FR_SERVER_LABELS = ['Frembed 1', 'Frembed 2', 'VidSrc FR', 'MultiEmbed', '2Embed']
-
-  // ─── Serveurs EN ────────────────────────────────────────────────────────────
-  const EN_SERVERS = [
-    (id: number) => `https://frembed.pro/api/film.php?id=${id}&lang=en`,
-    (id: number) => `https://vidsrc.cc/v2/embed/movie/${id}`,
-    (id: number) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-  ]
-  const EN_SERVER_LABELS = ['Frembed', 'VidSrc EN', 'MultiEmbed']
-
-  const getServers = (lang: 'fr' | 'en') => (lang === 'fr' ? FR_SERVERS : EN_SERVERS)
-  const getServerLabels = (lang: 'fr' | 'en') => (lang === 'fr' ? FR_SERVER_LABELS : EN_SERVER_LABELS)
-
-  // ─── Films populaires ────────────────────────────────────────────────────
-  useEffect(() => {
-    const loadPopularFilms = async () => {
-      try {
-        const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`)
-        const data = await res.json()
-        if (data.results) setFilms(data.results)
-      } catch {
-        setStatus('Erreur lors du chargement des films populaires.')
-      } finally {
-        setIsLoading(false)
-        setIsInitialLoad(false)
-      }
-    }
-    loadPopularFilms()
-  }, [])
-
-  // ─── Anti-popup ─────────────────────────────────────────────────────────
+  // ─── Anti-popup ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedFilm) return
     const originalOpen = window.open
@@ -90,31 +51,23 @@ export function FilmMode() {
     }
   }, [selectedFilm])
 
-  // ─── Auto-switch si iframe ne charge pas dans le délai ─────────────────
+  // ─── Films populaires ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!selectedFilm || !iframeLoading) {
-      if (autoSwitchTimerRef.current) {
-        clearTimeout(autoSwitchTimerRef.current)
-        autoSwitchTimerRef.current = null
+    const loadPopularFilms = async () => {
+      try {
+        const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=fr-FR&page=1`)
+        const data = await res.json()
+        if (data.results) setFilms(data.results)
+      } catch {
+        setStatus('Erreur lors du chargement des films populaires.')
+      } finally {
+        setIsLoading(false)
       }
-      return
     }
-    autoSwitchTimerRef.current = setTimeout(() => {
-      const servers = getServers(selectedFilm.lang)
-      const nextIdx = serverIndex + 1
-      if (nextIdx < servers.length) {
-        setAutoSwitching(true)
-        setServerIndex(nextIdx)
-        setIframeLoading(true)
-        setTimeout(() => setAutoSwitching(false), 2500)
-      }
-    }, AUTO_SWITCH_TIMEOUT)
-    return () => {
-      if (autoSwitchTimerRef.current) clearTimeout(autoSwitchTimerRef.current)
-    }
-  }, [selectedFilm, serverIndex, iframeLoading])
+    loadPopularFilms()
+  }, [])
 
-  // ─── Recherche ─────────────────────────────────────────────────────────
+  // ─── Recherche ──────────────────────────────────────────────────────────────
   const searchFilms = useCallback(async () => {
     if (!query.trim()) {
       setIsLoading(true)
@@ -158,7 +111,6 @@ export function FilmMode() {
   const selectLanguage = (lang: 'fr' | 'en') => {
     if (showLangChoice) {
       setIframeLoading(true)
-      setServerIndex(0)
       setSelectedFilm({ film: showLangChoice, lang })
       setShowLangChoice(null)
     }
@@ -167,7 +119,6 @@ export function FilmMode() {
   const closePlayer = () => {
     setSelectedFilm(null)
     setIframeLoading(true)
-    if (autoSwitchTimerRef.current) clearTimeout(autoSwitchTimerRef.current)
   }
 
   const closeLangChoice = () => setShowLangChoice(null)
@@ -180,27 +131,6 @@ export function FilmMode() {
     }
   }
 
-  const getEmbedUrl = (tmdbId: number, lang: 'fr' | 'en') =>
-    getServers(lang)[serverIndex](tmdbId)
-
-  const switchServer = (idx: number) => {
-    setServerIndex(idx)
-    setIframeLoading(true)
-  }
-
-  const tryNextServer = () => {
-    if (!selectedFilm) return
-    const nextIdx = serverIndex + 1
-    if (nextIdx < getServers(selectedFilm.lang).length) {
-      setServerIndex(nextIdx)
-      setIframeLoading(true)
-    }
-  }
-
-  const hasNextServer = selectedFilm
-    ? serverIndex + 1 < getServers(selectedFilm.lang).length
-    : false
-
   return (
     <>
       <motion.div
@@ -208,7 +138,7 @@ export function FilmMode() {
         animate={{ opacity: 1 }}
         className="flex-1 flex flex-col p-6 overflow-hidden"
       >
-        {/* Search */}
+        {/* Barre de recherche */}
         <div className="flex gap-3 mb-8">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -250,7 +180,7 @@ export function FilmMode() {
 
         {status && <div className="text-center py-12 text-muted-foreground text-sm">{status}</div>}
 
-        {/* Film Grid */}
+        {/* Grille de films */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
             <AnimatePresence mode="popLayout">
@@ -325,7 +255,7 @@ export function FilmMode() {
         )}
       </motion.div>
 
-      {/* Language Modal */}
+      {/* Modal choix de langue */}
       <AnimatePresence>
         {showLangChoice && (
           <motion.div
@@ -368,10 +298,10 @@ export function FilmMode() {
                 </Button>
               </div>
 
-              {/* Badge sans pub */}
+              {/* Badge serveur */}
               <div className="flex justify-center mb-5">
                 <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium">
-                  ✓ Serveur prioritaire sans publicité (Frembed/Uqload)
+                  ✓ Frembed 2 — Uqload
                 </span>
               </div>
 
@@ -400,7 +330,7 @@ export function FilmMode() {
         )}
       </AnimatePresence>
 
-      {/* Player */}
+      {/* Lecteur */}
       <AnimatePresence>
         {selectedFilm && (
           <motion.div
@@ -424,21 +354,7 @@ export function FilmMode() {
               </span>
             </motion.div>
 
-            {/* Notif auto-switch */}
-            <AnimatePresence>
-              {autoSwitching && (
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-black/80 backdrop-blur-sm text-white/90 px-4 py-2 rounded-xl border border-white/10 text-sm whitespace-nowrap"
-                >
-                  🔄 Passage automatique vers {getServerLabels(selectedFilm.lang)[serverIndex]}…
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Loading */}
+            {/* Chargement */}
             <AnimatePresence>
               {iframeLoading && (
                 <motion.div
@@ -448,17 +364,15 @@ export function FilmMode() {
                 >
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                    <span className="text-sm text-white/50">
-                      Chargement via {getServerLabels(selectedFilm.lang)[serverIndex]}…
-                    </span>
+                    <span className="text-sm text-white/50">Chargement via Frembed 2 — Uqload…</span>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Iframe — key forcée au changement de serveur pour recharger */}
+            {/* Iframe */}
             <iframe
-              key={`${selectedFilm.film.id}-${serverIndex}`}
+              key={selectedFilm.film.id}
               src={getEmbedUrl(selectedFilm.film.id, selectedFilm.lang)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
@@ -468,7 +382,7 @@ export function FilmMode() {
               style={{ minHeight: '200px' }}
             />
 
-            {/* Controls bar */}
+            {/* Barre de contrôle */}
             <motion.div
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -503,39 +417,10 @@ export function FilmMode() {
                 {selectedFilm.lang === 'fr' ? 'VF' : 'VO'}
               </span>
 
-              {/* Sélecteur de serveur (desktop) */}
-              <div className="hidden sm:flex items-center gap-1 shrink-0">
-                {getServerLabels(selectedFilm.lang).map((label, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => switchServer(idx)}
-                    className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-all ${
-                      serverIndex === idx
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                    }`}
-                  >
-                    {label}
-                    {/* Marque les serveurs frembed sans pub */}
-                    {((selectedFilm.lang === 'fr' && idx <= 1) || (selectedFilm.lang === 'en' && idx === 0)) && (
-                      <span className="ml-1 text-emerald-400 text-[9px]">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Bouton Film indispo? → serveur suivant */}
-              {hasNextServer && !iframeLoading && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={tryNextServer}
-                  className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl gap-1 px-2 sm:px-3 text-[10px] sm:text-xs shrink-0"
-                >
-                  <SkipForward className="w-3 h-3" />
-                  <span className="hidden sm:inline">Film indispo?</span>
-                </Button>
-              )}
+              {/* Badge serveur fixe */}
+              <span className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 text-emerald-400 bg-emerald-400/15 border border-emerald-400/30">
+                ✓ Uqload
+              </span>
 
               <Button
                 variant="ghost"
