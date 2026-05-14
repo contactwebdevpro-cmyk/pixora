@@ -299,10 +299,20 @@ export function FilmMode() {
               </div>
 
               {/* Badge serveur */}
-              <div className="flex justify-center mb-5">
+              <div className="flex justify-center mb-4">
                 <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium">
                   ✓ Frembed 2 — Uqload
                 </span>
+              </div>
+
+              {/* Conseil anti-pub */}
+              <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl px-4 py-3 mb-5">
+                <span className="text-amber-400 text-base shrink-0 mt-0.5">⚠️</span>
+                <p className="text-xs text-amber-300/90 leading-relaxed">
+                  <span className="font-semibold text-amber-400">En cas de publicités</span>, sélectionnez le serveur{" "}
+                  <span className="font-semibold text-white">Uqload</span>{" "}
+                  en <span className="font-semibold text-white">haut à gauche</span> du lecteur avant de lancer le film.
+                </p>
               </div>
 
               <p className="text-sm text-muted-foreground text-center mb-5">Choisissez la langue de lecture</p>
