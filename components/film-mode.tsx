@@ -24,9 +24,8 @@ export function FilmMode() {
   const [films, setFilms] = useState<Film[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
-  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
+  const [selectedFilm, setSelectedFilm] = useState<{ film: Film; lang: 'fr' | 'en' } | null>(null)
   const [showLangChoice, setShowLangChoice] = useState<Film | null>(null)
-  const [selectedLang, setSelectedLang] = useState<'fr' | 'en'>('fr')
   const [status, setStatus] = useState('')
   const [iframeLoading, setIframeLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -166,15 +165,17 @@ export function FilmMode() {
   }
 
   const selectLanguage = (lang: 'fr' | 'en') => {
-    setSelectedLang(lang)
-    setIframeLoading(true)
-    setSelectedFilm(showLangChoice)
-    setShowLangChoice(null)
+    if (showLangChoice) {
+      setIframeLoading(true)
+      setSelectedFilm({ film: showLangChoice, lang })
+      setShowLangChoice(null)
+    }
   }
 
   const closePlayer = () => {
     setSelectedFilm(null)
     setIframeLoading(true)
+    setShowAdWarning(true)
   }
 
   const closeLangChoice = () => {
@@ -520,7 +521,7 @@ export function FilmMode() {
             
             {/* Iframe with mobile-friendly settings */}
             <iframe
-              src={getEmbedUrl(selectedFilm.id, selectedLang)}
+              src={getEmbedUrl(selectedFilm.film.id, selectedFilm.lang)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
@@ -550,19 +551,19 @@ export function FilmMode() {
 
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-semibold truncate text-white">
-                  {selectedFilm.title}
+                  {selectedFilm.film.title}
                 </p>
                 <p className="text-[10px] sm:text-xs text-white/50 hidden sm:block">
-                  {selectedFilm.release_date ? new Date(selectedFilm.release_date).getFullYear() : ''}
+                  {selectedFilm.film.release_date ? new Date(selectedFilm.film.release_date).getFullYear() : ''}
                 </p>
               </div>
 
               <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 ${
-                selectedLang === 'fr' 
+                selectedFilm.lang === 'fr' 
                   ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30' 
                   : 'text-blue-400 bg-blue-400/15 border border-blue-400/30'
               }`}>
-                {selectedLang === 'fr' ? 'VF' : 'VO'}
+                {selectedFilm.lang === 'fr' ? 'VF' : 'VO'}
               </span>
 
               <Button
