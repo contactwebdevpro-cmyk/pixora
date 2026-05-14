@@ -31,6 +31,7 @@ export function FilmMode() {
   const [showAdWarning, setShowAdWarning] = useState(true)
   const [serverIndex, setServerIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
   const FR_SERVERS = [
     (id: number) => `https://frembed.one/api/film.php?id=${id}`,
@@ -62,65 +63,52 @@ export function FilmMode() {
     loadPopularFilms()
   }, [])
 
-  // Block popups and new windows globally when film player is open
+  // Popup blocking: three-layer defence
   useEffect(() => {
     if (!selectedFilm) return
 
-    // Store original window.open
+    // Layer 1 – Override window.open (blocks same-origin calls that leak through)
     const originalOpen = window.open
+    window.open = () => null
 
-    // Block all popups
-    window.open = function() {
-      // Popup blocked silently
-      return null
+    // Layer 2 – window.blur fires whenever any cross-origin iframe steals focus
+    // (e.g. window.open inside the iframe).  Re-focusing the parent prevents
+    // the popup from becoming the active tab.
+    const handleBlur = () => {
+      window.focus()
+      setTimeout(() => window.focus(), 0)
     }
 
-    // Block click events that try to open new windows
-    const blockPopupClicks = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'A') {
-        const anchor = target as HTMLAnchorElement
-        if (anchor.target === '_blank' || anchor.rel?.includes('noopener')) {
-          e.preventDefault()
-          e.stopPropagation()
-          // Link popup blocked silently
-        }
-      }
-    }
-
-    // Block beforeunload popups
-    const blockBeforeUnload = (e: BeforeUnloadEvent) => {
+    // Layer 3 – beforeunload guard (some embeds try to navigate the parent)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault()
       e.returnValue = ''
     }
 
-    document.addEventListener('click', blockPopupClicks, true)
-    window.addEventListener('beforeunload', blockBeforeUnload)
+    window.addEventListener('blur', handleBlur)
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
       window.open = originalOpen
-      document.removeEventListener('click', blockPopupClicks, true)
-      window.removeEventListener('beforeunload', blockBeforeUnload)
+      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [selectedFilm])
 
-  // Handle iframe focus and messaging
-  useEffect(() => {
-    if (!selectedFilm) return
-
-    const handleMessage = (e: MessageEvent) => {
-      // Block suspicious messages from iframe
-      if (e.data && typeof e.data === 'string') {
-        if (e.data.includes('ad') || e.data.includes('popup') || e.data.includes('click')) {
-        // Suspicious message blocked silently
-          return
-        }
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [selectedFilm])
+  // Transparent click-pass-through overlay handler.
+  // The overlay sits above the iframe with pointer-events:all, intercepting
+  // every mousedown.  We remove pointer-events for exactly one rAF tick so the
+  // underlying player controls receive the legitimate click, then immediately
+  // restore the shield.  Any popup triggered by that click is caught by the
+  // blur handler above.
+  const handleOverlayMouseDown = useCallback(() => {
+    const el = overlayRef.current
+    if (!el) return
+    el.style.pointerEvents = 'none'
+    requestAnimationFrame(() => {
+      if (overlayRef.current) overlayRef.current.style.pointerEvents = 'all'
+    })
+  }, [])
 
   const searchFilms = useCallback(async () => {
     if (!query.trim()) {
@@ -456,25 +444,18 @@ export function FilmMode() {
               </span>
             </motion.div>
 
-            {/* Ad blocker overlay - blocks click hijacking */}
-            <div 
+            {/* Click-interceptor overlay
+                 – pointer-events:all blocks every click from reaching the iframe
+                 – handleOverlayMouseDown lifts the shield for exactly one rAF
+                   tick so player controls work normally
+                 – window.blur + window.focus() catches any popup the iframe
+                   manages to open during that tick                         */}
+            <div
+              ref={overlayRef}
+              onMouseDown={handleOverlayMouseDown}
               className="absolute inset-0 z-10"
-              style={{ 
-                pointerEvents: 'none',
-              }}
+              style={{ pointerEvents: 'all', cursor: 'default' }}
             />
-            
-            {/* Style injection to hide common ad elements inside iframe container */}
-            <style>{`
-              #film-player-container iframe {
-                position: relative;
-                z-index: 1;
-              }
-              /* Block any overlay divs that might appear */
-              #film-player-container > div:not([class]) {
-                display: none !important;
-              }
-            `}</style>
             
             {/* Ad warning overlay */}
             <AnimatePresence>
