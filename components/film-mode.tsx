@@ -356,7 +356,7 @@ export function FilmMode() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-            className="absolute top-0 right-2 sm:top-0 sm:right-3 z-40 bg-black/60 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10"
+            className="absolute top-0 right-0 sm:top-0 sm:right-0 z-40 bg-black/60 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10"
             >
               <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight">
                 <span className="text-white">Pix</span>
