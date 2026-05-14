@@ -47,7 +47,7 @@ export function UBlockBanner() {
   useEffect(() => {
     // Check if already dismissed this session
     try {
-      if (sessionStorage.getItem(DISMISSED_KEY) === '1') {
+      if (localStorage.getItem(DISMISSED_KEY) === '1') {
         setStatus('dismissed')
         return
       }
@@ -61,7 +61,7 @@ export function UBlockBanner() {
   }, [])
 
   const dismiss = () => {
-    try { sessionStorage.setItem(DISMISSED_KEY, '1') } catch {}
+    try { localStorage.setItem(DISMISSED_KEY, '1') } catch {}
     setStatus('dismissed')
   }
 
