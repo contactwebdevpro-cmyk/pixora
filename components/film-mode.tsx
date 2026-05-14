@@ -430,20 +430,33 @@ export function FilmMode() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-             className="absolute top-1 right-1 sm:top-2 sm:right-2 z-40"
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-40 bg-black/60 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10"
             >
-              <img
-                 src="https://raw.githubusercontent.com/contactwebdevpro-cmyk/logo/main/logo.png"
-                alt="Pixora"
-                className="h-10 sm:h-12 md:h-14 w-auto object-contain drop-shadow-lg"
-              />
+              <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight">
+                <span className="text-white">Pix</span>
+                <span className="text-primary">ora</span>
+              </span>
             </motion.div>
 
-            {/* Ad blocker overlay - catches clicks that try to open popups */}
+            {/* Ad blocker overlay - blocks click hijacking */}
             <div 
-              className="absolute inset-0 z-10 pointer-events-none"
-              style={{ pointerEvents: iframeLoading ? 'auto' : 'none' }}
+              className="absolute inset-0 z-10"
+              style={{ 
+                pointerEvents: 'none',
+              }}
             />
+            
+            {/* Style injection to hide common ad elements inside iframe container */}
+            <style>{`
+              #film-player-container iframe {
+                position: relative;
+                z-index: 1;
+              }
+              /* Block any overlay divs that might appear */
+              #film-player-container > div:not([class]) {
+                display: none !important;
+              }
+            `}</style>
             
             {/* Loading overlay */}
             <AnimatePresence>
@@ -460,13 +473,14 @@ export function FilmMode() {
               )}
             </AnimatePresence>
             
-            {/* Iframe with mobile-friendly settings */}
+            {/* Iframe with mobile-friendly settings and ad-blocking sandbox */}
             <iframe
               src={getEmbedUrl(selectedFilm.id, selectedLang)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               referrerPolicy="no-referrer"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
               onLoad={handleIframeLoad}
               style={{ minHeight: '200px' }}
             />
