@@ -10,7 +10,7 @@ export interface Channel {
 }
 
 export type ViewMode = 'all' | 'favorites' | 'recent' | 'category' | 'search'
-export type AppMode = 'tv' | 'film' | null
+export type AppMode = 'tv' | 'film' | 'series' | null
 
 interface AppState {
   // App mode
