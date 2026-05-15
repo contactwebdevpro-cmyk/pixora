@@ -13,7 +13,6 @@ interface Serie {
   first_air_date: string
   overview: string
   vote_average: number
-  number_of_seasons?: number
 }
 
 interface Season {
@@ -41,28 +40,35 @@ export function SeriesMode() {
   const [seasonsLoading, setSeasonsLoading] = useState(false)
   const [currentSeason, setCurrentSeason] = useState(1)
   const [currentEpisode, setCurrentEpisode] = useState(1)
-  const [episodeCount, setEpisodeCount] = useState(1)
+  const [episodeCount, setEpisodeCount] = useState(10)
 
   // Lecteur
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoading, setIframeLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── Anti-popup ────────────────────────────────────────────────────────────
+  // ─── Anti-beforeunload uniquement (sans override window.open) ─────────────
   useEffect(() => {
     if (!isPlaying) return
-    const originalOpen = window.open
-    window.open = () => null
-    const handleBlur = () => { window.focus(); setTimeout(() => window.focus(), 0) }
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('blur', handleBlur)
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      window.open = originalOpen
-      window.removeEventListener('blur', handleBlur)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
     }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isPlaying])
+
+  // ─── Fallback: masquer le loader après 12s si onLoad ne se déclenche pas ──
+  useEffect(() => {
+    if (!isPlaying) return
+    setIframeLoading(true)
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+    loadingTimerRef.current = setTimeout(() => setIframeLoading(false), 12000)
+    return () => {
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+    }
+  }, [isPlaying, currentSeason, currentEpisode])
 
   // ─── Séries populaires ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -124,6 +130,7 @@ export function SeriesMode() {
     setSelectedSerie(serie)
     setCurrentSeason(1)
     setCurrentEpisode(1)
+    setEpisodeCount(10)
     setSeasonsLoading(true)
     try {
       const res = await fetch(`${TMDB_BASE}/tv/${serie.id}?api_key=${TMDB_API_KEY}&language=fr-FR`)
@@ -131,7 +138,7 @@ export function SeriesMode() {
       const rawSeasons: Season[] = (data.seasons || []).filter((s: Season) => s.season_number > 0)
       setSeasons(rawSeasons)
       if (rawSeasons.length > 0) {
-        setEpisodeCount(rawSeasons[0].episode_count || 1)
+        setEpisodeCount(rawSeasons[0].episode_count || 10)
       }
     } catch {
       setSeasons([])
@@ -144,7 +151,7 @@ export function SeriesMode() {
     setCurrentSeason(sn)
     setCurrentEpisode(1)
     const found = seasons.find((s) => s.season_number === sn)
-    setEpisodeCount(found?.episode_count || 1)
+    setEpisodeCount(found?.episode_count || 10)
   }
 
   const closeSerie = () => {
@@ -155,13 +162,11 @@ export function SeriesMode() {
   }
 
   const startPlaying = () => {
-    setIframeLoading(true)
     setIsPlaying(true)
   }
 
   const closePlayer = () => {
     setIsPlaying(false)
-    setIframeLoading(true)
   }
 
   const toggleFullscreen = () => {
@@ -172,33 +177,36 @@ export function SeriesMode() {
     }
   }
 
-  // Navigation épisode suivant/précédent
+  // Navigation épisode précédent
   const prevEpisode = () => {
     if (currentEpisode > 1) {
       setCurrentEpisode((e) => e - 1)
-      setIframeLoading(true)
     } else {
       const prevSeason = seasons.find((s) => s.season_number === currentSeason - 1)
       if (prevSeason) {
-        handleSeasonChange(currentSeason - 1)
+        setCurrentSeason(currentSeason - 1)
+        setEpisodeCount(prevSeason.episode_count)
         setCurrentEpisode(prevSeason.episode_count)
-        setIframeLoading(true)
       }
     }
   }
 
+  // Navigation épisode suivant
   const nextEpisode = () => {
     if (currentEpisode < episodeCount) {
       setCurrentEpisode((e) => e + 1)
-      setIframeLoading(true)
     } else {
       const nextSeason = seasons.find((s) => s.season_number === currentSeason + 1)
       if (nextSeason) {
-        handleSeasonChange(currentSeason + 1)
-        setIframeLoading(true)
+        setCurrentSeason(currentSeason + 1)
+        setEpisodeCount(nextSeason.episode_count)
+        setCurrentEpisode(1)
       }
     }
   }
+
+  const canGoPrev = currentSeason > 1 || currentEpisode > 1
+  const canGoNext = currentEpisode < episodeCount || !!seasons.find((s) => s.season_number === currentSeason + 1)
 
   return (
     <>
@@ -284,14 +292,12 @@ export function SeriesMode() {
                           <Tv2 className="w-10 h-10 text-muted-foreground/30" />
                         </div>
                       )}
-                      {/* Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex items-end justify-center pb-4">
                         <div className="flex items-center gap-1.5 bg-primary px-4 py-2 rounded-xl">
                           <Play className="w-3.5 h-3.5 fill-white text-white" />
                           <span className="text-xs font-semibold text-white">Regarder</span>
                         </div>
                       </div>
-                      {/* Note */}
                       {serie.vote_average > 0 && (
                         <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm px-2 py-1 rounded-lg">
                           <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
@@ -349,7 +355,7 @@ export function SeriesMode() {
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
               transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border/50 rounded-3xl p-7 max-w-lg w-full shadow-2xl"
+              className="bg-card border border-border/50 rounded-3xl p-7 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
               <div className="flex items-start gap-5 mb-6">
@@ -408,33 +414,19 @@ export function SeriesMode() {
                       Saison
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {seasons.length > 0
-                        ? seasons.map((s) => (
-                            <button
-                              key={s.season_number}
-                              onClick={() => handleSeasonChange(s.season_number)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                                currentSeason === s.season_number
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
-                              }`}
-                            >
-                              S{s.season_number}
-                            </button>
-                          ))
-                        : Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                            <button
-                              key={n}
-                              onClick={() => { setCurrentSeason(n); setCurrentEpisode(1) }}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                                currentSeason === n
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
-                              }`}
-                            >
-                              S{n}
-                            </button>
-                          ))}
+                      {(seasons.length > 0 ? seasons : Array.from({ length: 5 }, (_, i) => ({ season_number: i + 1, episode_count: 10, name: `Saison ${i + 1}` }))).map((s) => (
+                        <button
+                          key={s.season_number}
+                          onClick={() => handleSeasonChange(s.season_number)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                            currentSeason === s.season_number
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                          }`}
+                        >
+                          S{s.season_number}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -443,7 +435,7 @@ export function SeriesMode() {
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
                       Épisode
                     </label>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto scrollbar-thin pr-1">
+                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto scrollbar-thin pr-1">
                       {Array.from({ length: episodeCount }, (_, i) => i + 1).map((n) => (
                         <button
                           key={n}
@@ -505,7 +497,7 @@ export function SeriesMode() {
                 <motion.div
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-20 bg-black flex items-center justify-center"
+                  className="absolute inset-0 z-20 bg-black flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -517,15 +509,17 @@ export function SeriesMode() {
               )}
             </AnimatePresence>
 
-            {/* Iframe */}
+            {/* Iframe — referrerPolicy omis pour laisser le navigateur envoyer le referer par défaut */}
             <iframe
-              key={`${selectedSerie.id}-s${currentSeason}-e${currentEpisode}`}
+              key={`serie-${selectedSerie.id}-s${currentSeason}-e${currentEpisode}`}
               src={getSerieEmbedUrl(selectedSerie.id, currentSeason, currentEpisode)}
-              className="flex-1 w-full h-full border-none relative z-0"
+              className="flex-1 w-full h-full border-none relative z-10"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-              referrerPolicy="no-referrer"
-              onLoad={() => setIframeLoading(false)}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; clipboard-write"
+              onLoad={() => {
+                if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+                setIframeLoading(false)
+              }}
               style={{ minHeight: '200px' }}
             />
 
@@ -555,7 +549,7 @@ export function SeriesMode() {
                 </p>
               </div>
 
-              {/* Badges S/E */}
+              {/* Badge S/E */}
               <span className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 text-violet-400 bg-violet-400/15 border border-violet-400/30">
                 S{currentSeason} E{currentEpisode}
               </span>
@@ -565,7 +559,7 @@ export function SeriesMode() {
                 variant="ghost"
                 size="icon"
                 onClick={prevEpisode}
-                disabled={currentSeason === 1 && currentEpisode === 1}
+                disabled={!canGoPrev}
                 className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-30"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -575,10 +569,7 @@ export function SeriesMode() {
                 variant="ghost"
                 size="icon"
                 onClick={nextEpisode}
-                disabled={
-                  currentEpisode >= episodeCount &&
-                  !seasons.find((s) => s.season_number === currentSeason + 1)
-                }
+                disabled={!canGoNext}
                 className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-30"
               >
                 <ChevronRight className="w-4 h-4" />
