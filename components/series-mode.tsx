@@ -25,7 +25,7 @@ const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
 const getEmbedUrl = (id: number, saison: number, episode: number) =>
-  `https://frembed.one/api/serie.php?id=${id}&sa=${saison}&epi=${episode}`
+  `https://vidsrc.to/embed/tv/${id}/${saison}/${episode}`
 
 export function SeriesMode() {
   const [query, setQuery] = useState('')
@@ -365,7 +365,7 @@ export function SeriesMode() {
               {/* Badge serveur */}
               <div className="flex justify-center mb-4">
                 <span className="text-xs px-3 py-1.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-400 font-medium">
-                  ✓ Frembed — Séries
+                  ✓ VidSrc — Séries
                 </span>
               </div>
 
@@ -481,8 +481,8 @@ export function SeriesMode() {
               src={getEmbedUrl(selectedSerie.serie.id, selectedSerie.saison, selectedSerie.episode)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-              referrerPolicy="no-referrer"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; clipboard-write"
+              referrerPolicy="origin"
               onLoad={() => setIframeLoading(false)}
               style={{ minHeight: '200px' }}
             />
