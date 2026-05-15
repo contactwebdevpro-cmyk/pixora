@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Settings, RefreshCw, Tv, Film, Shield } from 'lucide-react'
+import { Search, Settings, RefreshCw, Tv, Film, Shield, Clapperboard } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -91,26 +91,44 @@ export function Header() {
       </div>
 
       {/* Mode switch */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setAppMode(null)}
-        className="gap-2.5 shrink-0 h-10 px-4 rounded-xl hover:bg-card/80 border border-transparent hover:border-border/40"
-      >
-        {appMode === 'tv' ? (
-          <>
-            <Tv className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground/60">/</span>
-            <Film className="w-4 h-4 text-muted-foreground/50" />
-          </>
-        ) : (
-          <>
-            <Film className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground/60">/</span>
-            <Tv className="w-4 h-4 text-muted-foreground/50" />
-          </>
-        )}
-      </Button>
+      <div className="flex items-center gap-1 shrink-0 bg-card/60 border border-border/40 rounded-xl p-1">
+        <button
+          onClick={() => setAppMode('tv')}
+          title="TV Direct"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+            appMode === 'tv'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+          }`}
+        >
+          <Tv className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">TV</span>
+        </button>
+        <button
+          onClick={() => setAppMode('film')}
+          title="Films"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+            appMode === 'film'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Films</span>
+        </button>
+        <button
+          onClick={() => setAppMode('series')}
+          title="Séries"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+            appMode === 'series'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+          }`}
+        >
+          <Clapperboard className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Séries</span>
+        </button>
+      </div>
 
       {/* Settings */}
       <Button
