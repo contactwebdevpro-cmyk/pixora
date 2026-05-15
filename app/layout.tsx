@@ -149,6 +149,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased overflow-hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/90 px-4 py-2 text-center text-xs text-white backdrop-blur-sm">
+          Avertissement légal : Pixora agit uniquement comme interface de référencement et de lecture de contenus disponibles publiquement sur Internet.
+          Nous n'hébergeons aucun flux vidéo sur nos serveurs et ne pouvons être tenus responsables du contenu diffusé par des services tiers,
+          ni d'une mauvaise utilisation de la plateforme par les utilisateurs.
+        </div>
+
         {children}
 
         {process.env.NODE_ENV === 'production' && <Analytics />}
