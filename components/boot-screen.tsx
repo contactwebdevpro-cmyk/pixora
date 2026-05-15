@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Tv, Film, Shield, Zap, Play } from 'lucide-react'
+import { Tv, Film, Shield, Zap, Play, Clapperboard } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
 export function BootScreen() {
@@ -130,7 +130,7 @@ export function BootScreen() {
                   </p>
                 </div>
                 
-                <div className="flex gap-5">
+                <div className="flex gap-5 flex-wrap justify-center">
                   <ModeCard
                     icon={<Tv className="w-9 h-9" />}
                     label="TV Direct"
@@ -141,9 +141,16 @@ export function BootScreen() {
                   <ModeCard
                     icon={<Film className="w-9 h-9" />}
                     label="Films"
-                    description="VOD & Series"
+                    description="VOD & Cinéma"
                     onClick={() => setAppMode('film')}
                     delay={0.2}
+                  />
+                  <ModeCard
+                    icon={<Clapperboard className="w-9 h-9" />}
+                    label="Séries"
+                    description="Episodes & Saisons"
+                    onClick={() => setAppMode('series')}
+                    delay={0.3}
                   />
                 </div>
               </motion.div>
