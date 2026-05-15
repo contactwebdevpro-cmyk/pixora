@@ -25,7 +25,7 @@ const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
 const getEmbedUrl = (id: number, saison: number, episode: number) =>
-  `https://vidsrc.to/embed/tv/${id}/${saison}/${episode}`
+  `https://frembed.bond/embed/serie/${id}?sa=${saison}&epi=${episode}`
 
 export function SeriesMode() {
   const [query, setQuery] = useState('')
@@ -481,8 +481,8 @@ export function SeriesMode() {
               src={getEmbedUrl(selectedSerie.serie.id, selectedSerie.saison, selectedSerie.episode)}
               className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; clipboard-write"
-              referrerPolicy="origin"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+              referrerPolicy="no-referrer"
               onLoad={() => setIframeLoading(false)}
               style={{ minHeight: '200px' }}
             />
