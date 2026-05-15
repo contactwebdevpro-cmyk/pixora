@@ -25,7 +25,7 @@ const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
 const getEmbedUrl = (id: number, saison: number, episode: number) =>
-  `https://frembed.com/api/serie.php?id=${id}&sa=${saison}&epi=${episode}`
+  `https://frembed.one/api/serie.php?id=${id}&sa=${saison}&epi=${episode}`
 
 export function SeriesMode() {
   const [query, setQuery] = useState('')
