@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, ChevronLeft, ChevronRight, Tv2 } from 'lucide-react'
+import { Search, X, Maximize, ArrowLeft, Loader2, Play, Calendar, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -18,57 +18,45 @@ interface Serie {
 interface Season {
   season_number: number
   episode_count: number
-  name: string
 }
 
 const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342'
 
-const getSerieEmbedUrl = (id: number, saison: number, episode: number) =>
+const getEmbedUrl = (id: number, saison: number, episode: number) =>
   `https://frembed.com/api/serie.php?id=${id}&sa=${saison}&epi=${episode}`
 
 export function SeriesMode() {
   const [query, setQuery] = useState('')
   const [series, setSeries] = useState<Serie[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedSerie, setSelectedSerie] = useState<{ serie: Serie; saison: number; episode: number } | null>(null)
+  const [showPicker, setShowPicker] = useState<Serie | null>(null)
+  const [pickerSeasons, setPickerSeasons] = useState<Season[]>([])
+  const [pickerSeason, setPickerSeason] = useState(1)
+  const [pickerEpisode, setPickerEpisode] = useState(1)
+  const [pickerEpCount, setPickerEpCount] = useState(10)
+  const [pickerLoading, setPickerLoading] = useState(false)
   const [status, setStatus] = useState('')
-
-  // Sélection d'une série → choix saison/épisode
-  const [selectedSerie, setSelectedSerie] = useState<Serie | null>(null)
-  const [seasons, setSeasons] = useState<Season[]>([])
-  const [seasonsLoading, setSeasonsLoading] = useState(false)
-  const [currentSeason, setCurrentSeason] = useState(1)
-  const [currentEpisode, setCurrentEpisode] = useState(1)
-  const [episodeCount, setEpisodeCount] = useState(10)
-
-  // Lecteur
-  const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoading, setIframeLoading] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
-  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── Anti-beforeunload uniquement (sans override window.open) ─────────────
+  // ─── Anti-popup (identique à film-mode) ───────────────────────────────────
   useEffect(() => {
-    if (!isPlaying) return
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ''
-    }
+    if (!selectedSerie) return
+    const originalOpen = window.open
+    window.open = () => null
+    const handleBlur = () => { window.focus(); setTimeout(() => window.focus(), 0) }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('blur', handleBlur)
     window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isPlaying])
-
-  // ─── Fallback: masquer le loader après 12s si onLoad ne se déclenche pas ──
-  useEffect(() => {
-    if (!isPlaying) return
-    setIframeLoading(true)
-    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
-    loadingTimerRef.current = setTimeout(() => setIframeLoading(false), 12000)
     return () => {
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+      window.open = originalOpen
+      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [isPlaying, currentSeason, currentEpisode])
+  }, [selectedSerie])
 
   // ─── Séries populaires ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -125,49 +113,50 @@ export function SeriesMode() {
     if (e.key === 'Enter') searchSeries()
   }
 
-  // ─── Sélection d'une série : charger les saisons ───────────────────────────
-  const openSerie = async (serie: Serie) => {
-    setSelectedSerie(serie)
-    setCurrentSeason(1)
-    setCurrentEpisode(1)
-    setEpisodeCount(10)
-    setSeasonsLoading(true)
+  // ─── Ouvrir le picker (équivalent de playFilm → showLangChoice) ────────────
+  const openPicker = async (serie: Serie) => {
+    setPickerSeason(1)
+    setPickerEpisode(1)
+    setPickerEpCount(10)
+    setPickerSeasons([])
+    setShowPicker(serie)
+    setPickerLoading(true)
     try {
       const res = await fetch(`${TMDB_BASE}/tv/${serie.id}?api_key=${TMDB_API_KEY}&language=fr-FR`)
       const data = await res.json()
-      const rawSeasons: Season[] = (data.seasons || []).filter((s: Season) => s.season_number > 0)
-      setSeasons(rawSeasons)
-      if (rawSeasons.length > 0) {
-        setEpisodeCount(rawSeasons[0].episode_count || 10)
-      }
+      const seasons: Season[] = (data.seasons || [])
+        .filter((s: Season) => s.season_number > 0)
+      setPickerSeasons(seasons)
+      if (seasons.length > 0) setPickerEpCount(seasons[0].episode_count || 10)
     } catch {
-      setSeasons([])
+      // garde les valeurs par défaut
     } finally {
-      setSeasonsLoading(false)
+      setPickerLoading(false)
     }
   }
 
-  const handleSeasonChange = (sn: number) => {
-    setCurrentSeason(sn)
-    setCurrentEpisode(1)
-    const found = seasons.find((s) => s.season_number === sn)
-    setEpisodeCount(found?.episode_count || 10)
+  const handlePickerSeasonChange = (sn: number) => {
+    setPickerSeason(sn)
+    setPickerEpisode(1)
+    const found = pickerSeasons.find((s) => s.season_number === sn)
+    setPickerEpCount(found?.episode_count || 10)
   }
 
-  const closeSerie = () => {
-    setSelectedSerie(null)
-    setSeasons([])
-    setIsPlaying(false)
-    setIframeLoading(true)
-  }
-
+  // ─── Lancer la lecture (équivalent de selectLanguage) ─────────────────────
   const startPlaying = () => {
-    setIsPlaying(true)
+    if (showPicker) {
+      setIframeLoading(true)
+      setSelectedSerie({ serie: showPicker, saison: pickerSeason, episode: pickerEpisode })
+      setShowPicker(null)
+    }
   }
 
   const closePlayer = () => {
-    setIsPlaying(false)
+    setSelectedSerie(null)
+    setIframeLoading(true)
   }
+
+  const closePicker = () => setShowPicker(null)
 
   const toggleFullscreen = () => {
     const container = document.getElementById('series-player-container')
@@ -177,36 +166,33 @@ export function SeriesMode() {
     }
   }
 
-  // Navigation épisode précédent
+  // ─── Navigation épisodes depuis le lecteur ─────────────────────────────────
+  const goToEpisode = (saison: number, episode: number) => {
+    setIframeLoading(true)
+    setSelectedSerie((prev) => prev ? { ...prev, saison, episode } : prev)
+  }
+
   const prevEpisode = () => {
-    if (currentEpisode > 1) {
-      setCurrentEpisode((e) => e - 1)
+    if (!selectedSerie) return
+    if (selectedSerie.episode > 1) {
+      goToEpisode(selectedSerie.saison, selectedSerie.episode - 1)
     } else {
-      const prevSeason = seasons.find((s) => s.season_number === currentSeason - 1)
-      if (prevSeason) {
-        setCurrentSeason(currentSeason - 1)
-        setEpisodeCount(prevSeason.episode_count)
-        setCurrentEpisode(prevSeason.episode_count)
-      }
+      const prevS = pickerSeasons.find((s) => s.season_number === selectedSerie.saison - 1)
+      if (prevS) goToEpisode(prevS.season_number, prevS.episode_count)
     }
   }
 
-  // Navigation épisode suivant
   const nextEpisode = () => {
-    if (currentEpisode < episodeCount) {
-      setCurrentEpisode((e) => e + 1)
+    if (!selectedSerie) return
+    const curSeason = pickerSeasons.find((s) => s.season_number === selectedSerie.saison)
+    const epCount = curSeason?.episode_count ?? pickerEpCount
+    if (selectedSerie.episode < epCount) {
+      goToEpisode(selectedSerie.saison, selectedSerie.episode + 1)
     } else {
-      const nextSeason = seasons.find((s) => s.season_number === currentSeason + 1)
-      if (nextSeason) {
-        setCurrentSeason(currentSeason + 1)
-        setEpisodeCount(nextSeason.episode_count)
-        setCurrentEpisode(1)
-      }
+      const nextS = pickerSeasons.find((s) => s.season_number === selectedSerie.saison + 1)
+      if (nextS) goToEpisode(nextS.season_number, 1)
     }
   }
-
-  const canGoPrev = currentSeason > 1 || currentEpisode > 1
-  const canGoNext = currentEpisode < episodeCount || !!seasons.find((s) => s.season_number === currentSeason + 1)
 
   return (
     <>
@@ -259,95 +245,88 @@ export function SeriesMode() {
 
         {/* Grille de séries */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-sm text-muted-foreground">Chargement des séries…</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-              <AnimatePresence mode="popLayout">
-                {series.map((serie, index) => (
-                  <motion.div
-                    key={serie.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    onClick={() => openSerie(serie)}
-                    className="group bg-card/40 border border-border/30 rounded-2xl overflow-hidden cursor-pointer transition-all duration-400 hover:border-primary/40 hover:bg-card/60 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
-                  >
-                    <div className="aspect-[2/3] bg-secondary/30 overflow-hidden relative">
-                      {serie.poster_path ? (
-                        <img
-                          src={`${TMDB_IMG}${serie.poster_path}`}
-                          alt={serie.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Tv2 className="w-10 h-10 text-muted-foreground/30" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex items-end justify-center pb-4">
-                        <div className="flex items-center gap-1.5 bg-primary px-4 py-2 rounded-xl">
-                          <Play className="w-3.5 h-3.5 fill-white text-white" />
-                          <span className="text-xs font-semibold text-white">Regarder</span>
-                        </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+            <AnimatePresence mode="popLayout">
+              {series.map((serie, index) => (
+                <motion.div
+                  key={serie.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  onClick={() => openPicker(serie)}
+                  className="group bg-card/40 border border-border/30 rounded-2xl overflow-hidden cursor-pointer transition-all duration-400 hover:border-primary/40 hover:bg-card/60 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
+                >
+                  <div className="aspect-[2/3] bg-secondary/30 overflow-hidden relative">
+                    {serie.poster_path ? (
+                      <img
+                        src={`${TMDB_IMG}${serie.poster_path}`}
+                        alt={serie.name}
+                        className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gradient-to-br from-secondary/50 to-secondary/30">
+                        <Play className="w-10 h-10 opacity-30" />
                       </div>
-                      {serie.vote_average > 0 && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                          <span className="text-[10px] font-medium text-white">
-                            {serie.vote_average.toFixed(1)}
-                          </span>
-                        </div>
-                      )}
+                    )}
+                    {serie.vote_average > 0 && (
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-sm">
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <span className="text-xs font-medium text-white">{serie.vote_average.toFixed(1)}</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-400 flex items-center justify-center">
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        whileHover={{ scale: 1.1 }}
+                        className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30"
+                      >
+                        <Play className="w-6 h-6 text-primary-foreground fill-current ml-1" />
+                      </motion.div>
                     </div>
-                    <div className="p-3">
-                      <h3 className="text-xs font-semibold truncate text-foreground group-hover:text-primary transition-colors">
-                        {serie.name}
-                      </h3>
-                      {serie.first_air_date && (
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Calendar className="w-3 h-3 text-muted-foreground/60" />
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(serie.first_air_date).getFullYear()}
-                          </span>
-                        </div>
-                      )}
+                  </div>
+                  <div className="p-3.5">
+                    <h3 className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
+                      {serie.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-2 text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span className="text-xs">
+                        {serie.first_air_date ? new Date(serie.first_air_date).getFullYear() : 'N/A'}
+                      </span>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {!isLoading && series.length === 0 && !status && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <Tv2 className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                  Utilisez la barre de recherche pour trouver vos séries préférées
-                </p>
-              </div>
-            </div>
-          )}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
+
+        {series.length === 0 && !status && !isLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mx-auto mb-6 border border-primary/10">
+                <Play className="w-10 h-10 text-primary/50" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2 text-foreground">Rechercher une série</h2>
+              <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                Utilisez la barre de recherche pour trouver vos séries préférées
+              </p>
+            </div>
+          </div>
+        )}
       </motion.div>
 
-      {/* ─── Modal choix saison / épisode ───────────────────────────────────── */}
+      {/* ─── Modal picker saison / épisode (équivalent modal langue) ─────────── */}
       <AnimatePresence>
-        {selectedSerie && !isPlaying && (
+        {showPicker && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={closeSerie}
+            onClick={closePicker}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
@@ -355,73 +334,62 @@ export function SeriesMode() {
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
               transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border/50 rounded-3xl p-7 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-card border border-border/50 rounded-3xl p-7 max-w-md w-full shadow-2xl"
             >
-              {/* Header */}
+              {/* Header série */}
               <div className="flex items-start gap-5 mb-6">
-                {selectedSerie.poster_path && (
+                {showPicker.poster_path && (
                   <img
-                    src={`${TMDB_IMG}${selectedSerie.poster_path}`}
-                    alt={selectedSerie.name}
-                    className="w-20 h-28 object-cover rounded-xl shadow-lg shrink-0"
+                    src={`${TMDB_IMG}${showPicker.poster_path}`}
+                    alt={showPicker.name}
+                    className="w-20 h-28 object-cover rounded-xl shadow-lg"
                   />
                 )}
                 <div className="flex-1 min-w-0 pt-1">
-                  <h3 className="text-xl font-bold truncate text-foreground">{selectedSerie.name}</h3>
+                  <h3 className="text-xl font-bold truncate text-foreground">{showPicker.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedSerie.first_air_date
-                      ? new Date(selectedSerie.first_air_date).getFullYear()
-                      : 'N/A'}
+                    {showPicker.first_air_date ? new Date(showPicker.first_air_date).getFullYear() : 'N/A'}
                   </p>
-                  {selectedSerie.vote_average > 0 && (
+                  {showPicker.vote_average > 0 && (
                     <div className="flex items-center gap-1.5 mt-2">
                       <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      <span className="text-sm font-medium">{selectedSerie.vote_average.toFixed(1)}</span>
+                      <span className="text-sm font-medium">{showPicker.vote_average.toFixed(1)}</span>
                     </div>
                   )}
-                  {selectedSerie.overview && (
-                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                      {selectedSerie.overview}
-                    </p>
-                  )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeSerie}
-                  className="shrink-0 rounded-xl h-9 w-9 -mt-1 -mr-1"
-                >
+                <Button variant="ghost" size="icon" onClick={closePicker} className="shrink-0 rounded-xl h-9 w-9 -mt-1 -mr-1">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
 
               {/* Badge serveur */}
-              <div className="flex justify-center mb-5">
+              <div className="flex justify-center mb-4">
                 <span className="text-xs px-3 py-1.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-400 font-medium">
                   ✓ Frembed — Séries
                 </span>
               </div>
 
-              {seasonsLoading ? (
+              {pickerLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-6 h-6 text-primary animate-spin" />
                 </div>
               ) : (
                 <>
-                  {/* Sélecteur de saison */}
+                  {/* Sélecteur saison */}
                   <div className="mb-4">
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-                      Saison
-                    </label>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Saison</p>
                     <div className="flex flex-wrap gap-2">
-                      {(seasons.length > 0 ? seasons : Array.from({ length: 5 }, (_, i) => ({ season_number: i + 1, episode_count: 10, name: `Saison ${i + 1}` }))).map((s) => (
+                      {(pickerSeasons.length > 0
+                        ? pickerSeasons
+                        : Array.from({ length: 5 }, (_, i) => ({ season_number: i + 1, episode_count: 10 }))
+                      ).map((s) => (
                         <button
                           key={s.season_number}
-                          onClick={() => handleSeasonChange(s.season_number)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                            currentSeason === s.season_number
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                          onClick={() => handlePickerSeasonChange(s.season_number)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            pickerSeason === s.season_number
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
                           }`}
                         >
                           S{s.season_number}
@@ -430,20 +398,18 @@ export function SeriesMode() {
                     </div>
                   </div>
 
-                  {/* Sélecteur d'épisode */}
+                  {/* Sélecteur épisode */}
                   <div className="mb-6">
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-                      Épisode
-                    </label>
-                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto scrollbar-thin pr-1">
-                      {Array.from({ length: episodeCount }, (_, i) => i + 1).map((n) => (
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Épisode</p>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto scrollbar-thin pr-1">
+                      {Array.from({ length: pickerEpCount }, (_, i) => i + 1).map((n) => (
                         <button
                           key={n}
-                          onClick={() => setCurrentEpisode(n)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                            currentEpisode === n
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                          onClick={() => setPickerEpisode(n)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            pickerEpisode === n
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
                           }`}
                         >
                           E{n}
@@ -452,13 +418,13 @@ export function SeriesMode() {
                     </div>
                   </div>
 
-                  {/* Bouton Lancer */}
+                  {/* Bouton lecture */}
                   <Button
                     onClick={startPlaying}
-                    className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 font-semibold text-sm gap-2"
+                    className="w-full h-14 flex flex-col gap-0.5 rounded-2xl border-border/50 bg-primary hover:bg-primary/90 transition-all"
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    Regarder — S{currentSeason} E{currentEpisode}
+                    <span className="font-semibold text-sm">▶ Regarder</span>
+                    <span className="text-xs opacity-80">Saison {pickerSeason} — Épisode {pickerEpisode}</span>
                   </Button>
                 </>
               )}
@@ -467,9 +433,9 @@ export function SeriesMode() {
         )}
       </AnimatePresence>
 
-      {/* ─── Lecteur ────────────────────────────────────────────────────────── */}
+      {/* ─── Lecteur (structure identique à film-mode) ────────────────────── */}
       <AnimatePresence>
-        {isPlaying && selectedSerie && (
+        {selectedSerie && (
           <motion.div
             id="series-player-container"
             ref={containerRef}
@@ -483,7 +449,7 @@ export function SeriesMode() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="absolute top-0 right-0 z-40 bg-black/60 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10"
+              className="absolute top-0 right-0 sm:top-0 sm:right-0 z-40 bg-black/60 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10"
             >
               <span className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight">
                 <span className="text-white">Pix</span>
@@ -497,29 +463,27 @@ export function SeriesMode() {
                 <motion.div
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-20 bg-black flex items-center justify-center pointer-events-none"
+                  className="absolute inset-0 z-20 bg-black flex items-center justify-center"
                 >
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-10 h-10 text-primary animate-spin" />
                     <span className="text-sm text-white/50">
-                      Chargement S{currentSeason} E{currentEpisode}…
+                      Chargement S{selectedSerie.saison} E{selectedSerie.episode}…
                     </span>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Iframe — referrerPolicy omis pour laisser le navigateur envoyer le referer par défaut */}
+            {/* Iframe — même config exacte que film-mode */}
             <iframe
-              key={`serie-${selectedSerie.id}-s${currentSeason}-e${currentEpisode}`}
-              src={getSerieEmbedUrl(selectedSerie.id, currentSeason, currentEpisode)}
-              className="flex-1 w-full h-full border-none relative z-10"
+              key={`${selectedSerie.serie.id}-s${selectedSerie.saison}-e${selectedSerie.episode}`}
+              src={getEmbedUrl(selectedSerie.serie.id, selectedSerie.saison, selectedSerie.episode)}
+              className="flex-1 w-full h-full border-none relative z-0"
               allowFullScreen
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; clipboard-write"
-              onLoad={() => {
-                if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
-                setIframeLoading(false)
-              }}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+              referrerPolicy="no-referrer"
+              onLoad={() => setIframeLoading(false)}
               style={{ minHeight: '200px' }}
             />
 
@@ -543,15 +507,15 @@ export function SeriesMode() {
               <div className="h-6 w-px bg-white/10 hidden sm:block shrink-0" />
 
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-semibold truncate text-white">{selectedSerie.name}</p>
+                <p className="text-xs sm:text-sm font-semibold truncate text-white">{selectedSerie.serie.name}</p>
                 <p className="text-[10px] sm:text-xs text-white/50 hidden sm:block">
-                  Saison {currentSeason} — Épisode {currentEpisode}
+                  Saison {selectedSerie.saison} — Épisode {selectedSerie.episode}
                 </p>
               </div>
 
               {/* Badge S/E */}
               <span className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-medium shrink-0 text-violet-400 bg-violet-400/15 border border-violet-400/30">
-                S{currentSeason} E{currentEpisode}
+                S{selectedSerie.saison} E{selectedSerie.episode}
               </span>
 
               {/* Navigation épisodes */}
@@ -559,8 +523,8 @@ export function SeriesMode() {
                 variant="ghost"
                 size="icon"
                 onClick={prevEpisode}
-                disabled={!canGoPrev}
-                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-30"
+                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10"
+                title="Épisode précédent"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -569,8 +533,8 @@ export function SeriesMode() {
                 variant="ghost"
                 size="icon"
                 onClick={nextEpisode}
-                disabled={!canGoNext}
-                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-30"
+                className="shrink-0 rounded-xl text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 sm:h-10 sm:w-10"
+                title="Épisode suivant"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
