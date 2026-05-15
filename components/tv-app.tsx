@@ -8,6 +8,7 @@ import { ChannelList } from '@/components/channel-list'
 import { VideoPlayer } from '@/components/video-player'
 import { SettingsModal } from '@/components/settings-modal'
 import { FilmMode } from '@/components/film-mode'
+import { SeriesMode } from '@/components/series-mode'
 import { useNotification } from '@/components/notification'
 
 const PROXIES = [
@@ -110,8 +111,10 @@ export function TVApp() {
             <Sidebar />
             <ChannelList />
           </>
-        ) : (
+        ) : appMode === 'film' ? (
           <FilmMode />
+        ) : (
+          <SeriesMode />
         )}
       </div>
       <VideoPlayer />
