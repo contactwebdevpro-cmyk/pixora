@@ -152,6 +152,10 @@ export default function RootLayout({
       <body className="font-sans antialiased overflow-hidden">
         <LegalWarning />
         {children}
+<script
+    async
+    src="https://pl29469303.effectivecpmnetwork.com/f5/a4/59/f5a459fec790a6f0faf8160ca4d12e13.js"
+  ></script>
 
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
