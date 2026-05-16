@@ -5,8 +5,8 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import LegalWarning from '@/components/LegalWarning'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _geist = Geist({ subsets: ['latin'] })
+const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 const siteUrl = 'https://pixora.vercel.app'
 
@@ -14,9 +14,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: 'Pixora - Streaming TV et Films Gratuit en Français',
-    template: '%s | Pixora'
+    template: '%s | Pixora',
   },
-  description: 'Regardez vos chaînes TV préférées et des milliers de films en streaming gratuit. Interface moderne, qualité HD, sans inscription. La meilleure plateforme de streaming français.',
+  description:
+    'Regardez vos chaînes TV préférées et des milliers de films en streaming gratuit. Interface moderne, qualité HD, sans inscription. La meilleure plateforme de streaming français.',
   keywords: [
     'streaming gratuit',
     'films streaming',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     'séries streaming',
     'Pixora',
     'streaming sans inscription',
-    'TV en ligne'
+    'TV en ligne',
   ],
   authors: [{ name: 'Pixora' }],
   creator: 'Pixora',
@@ -37,11 +38,13 @@ export const metadata: Metadata = {
   generator: 'Next.js',
   applicationName: 'Pixora',
   referrer: 'origin-when-cross-origin',
+
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
+
   icons: {
     icon: [
       {
@@ -59,14 +62,17 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+
   manifest: '/manifest.json',
+
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
     url: siteUrl,
     siteName: 'Pixora',
     title: 'Pixora - Streaming TV et Films Gratuit en Français',
-    description: 'Regardez vos chaînes TV préférées et des milliers de films en streaming gratuit. Interface moderne, qualité HD, sans inscription.',
+    description:
+      'Regardez vos chaînes TV préférées et des milliers de films en streaming gratuit. Interface moderne, qualité HD, sans inscription.',
     images: [
       {
         url: '/og-image.jpg',
@@ -76,17 +82,21 @@ export const metadata: Metadata = {
       },
     ],
   },
+
   twitter: {
     card: 'summary_large_image',
     title: 'Pixora - Streaming TV et Films Gratuit',
-    description: 'Regardez vos chaînes TV et films en streaming gratuit. Interface moderne, qualité HD.',
+    description:
+      'Regardez vos chaînes TV et films en streaming gratuit. Interface moderne, qualité HD.',
     images: ['/og-image.jpg'],
     creator: '@pixora',
   },
+
   robots: {
     index: true,
     follow: true,
     nocache: false,
+
     googleBot: {
       index: true,
       follow: true,
@@ -96,20 +106,29 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+
   alternates: {
     canonical: siteUrl,
     languages: {
       'fr-FR': siteUrl,
     },
   },
+
   category: 'entertainment',
 }
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#10b981' },
-    { media: '(prefers-color-scheme: dark)', color: '#059669' },
+    {
+      media: '(prefers-color-scheme: light)',
+      color: '#10b981',
+    },
+    {
+      media: '(prefers-color-scheme: dark)',
+      color: '#059669',
+    },
   ],
+
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -125,15 +144,18 @@ export default function RootLayout({
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
     name: 'Pixora',
-    description: 'Plateforme de streaming TV et films gratuit en français',
+    description:
+      'Plateforme de streaming TV et films gratuit en français',
     url: siteUrl,
     applicationCategory: 'EntertainmentApplication',
     operatingSystem: 'Web',
+
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'EUR',
     },
+
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: '4.8',
@@ -146,22 +168,33 @@ export default function RootLayout({
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd),
+          }}
         />
+
+        <script
+          async
+          src="https://acscdn.com/script/aclib.js"
+        ></script>
       </head>
+
       <body className="font-sans antialiased overflow-hidden">
         <LegalWarning />
+
         {children}
-<script
-  type="text/javascript"
-  dangerouslySetInnerHTML={{
-    __html: `
-      aclib.runAutoTag({
-        zoneId: 'gwq6zuxd7k',
-      });
-    `,
-  }}
-></script>
+
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              aclib.runAutoTag({
+                zoneId: 'gwq6zuxd7k',
+              });
+            `,
+          }}
+        ></script>
+
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
