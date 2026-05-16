@@ -153,10 +153,15 @@ export default function RootLayout({
         <LegalWarning />
         {children}
 <script
-    async
-    src="https://pl29469303.effectivecpmnetwork.com/f5/a4/59/f5a459fec790a6f0faf8160ca4d12e13.js"
-  ></script>
-
+  type="text/javascript"
+  dangerouslySetInnerHTML={{
+    __html: `
+      aclib.runAutoTag({
+        zoneId: 'gwq6zuxd7k',
+      });
+    `,
+  }}
+></script>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
